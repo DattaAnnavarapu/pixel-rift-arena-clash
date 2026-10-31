@@ -1,3 +1,6 @@
+import type { EmoteId } from "./social.js";
+import { updateTutorial, type TutorialState } from "./tutorial.js";
+import type { BotLevel } from "./bot-config.js";
 import {
   weapons,
   pickups,
@@ -255,6 +258,8 @@ export type Input = {
   shield: boolean;
   special?: boolean;
   sequence?: number;
+  shotId?: number;
+  history?: Input[];
 };
 export type Player = {
   id: string;
@@ -283,7 +288,13 @@ export type Player = {
   absorption: number;
   absorptionUntil: number;
   lastSequence?: number;
+  rtt?: number;
+  emote?: { id: EmoteId; until: number };
+  lastShotId?: number;
+  shieldBackdate?: number;
+  guardStart?: number;
   bot?: boolean;
+  botLevel?: BotLevel;
   stormTick?: number;
   portalUntil?: number;
   environmentTick?: number;
@@ -323,6 +334,10 @@ export type Effect = {
   at: number;
   value?: number;
   weaponId?: WeaponId;
+  actor?: string;
+  target?: string;
+  pickupKind?: PickupKind;
+  direction?: number;
 };
 export type Room = {
   code: string;
@@ -342,6 +357,8 @@ export type Room = {
     life: number;
     damage?: number;
     weaponId?: WeaponId;
+    shotId?: number;
+    catchup?: number;
   }[];
   crystals: { x: number; y: number }[];
   nextCrystal: number;
@@ -356,6 +373,11 @@ export type Room = {
   finishReason?: string;
   matchId?: string;
   publicMatch?: boolean;
+  tutorial?: boolean;
+  tutorialState?: TutorialState;
+  tutorialTarget?: { x: number; y: number };
+  botLevel?: BotLevel;
+  botSeed?: number;
   startsAt?: number;
   overtimeStart?: number;
   brokenWalls?: number[];
@@ -366,6 +388,8 @@ export type Room = {
     id: number;
     killer: string;
     victim: string;
+    victimId?: string;
+    killerId?: string;
     team: number;
     at: number;
   }[];
@@ -462,13 +486,14 @@ export function configure(
 function effect(
   r: Room,
   kind: Effect["kind"],
-  p: { x: number; y: number; team: number; weaponId?: WeaponId },
+  p: { x: number; y: number; team: number; weaponId?: WeaponId; id?: string },
   at: number,
   value?: number,
 ) {
   r.effects ??= [];
   r.eventId = (r.eventId ?? 0) + 1;
-  r.effects.push({
+  const event: Effect = {
+    actor: p.id,
     id: r.eventId,
     kind,
     x: p.x,
@@ -477,7 +502,9 @@ function effect(
     at,
     value,
     weaponId: kind === "shot" || kind === "reload" ? p.weaponId : undefined,
-  });
+  };
+  r.effects.push(event);
+  return event;
 }
 export function start(r: Room, now: number) {
   r.arena ??= "astral";
@@ -519,6 +546,8 @@ export function start(r: Room, now: number) {
       respawn: 0,
       immune: now + 1500,
       shot: 0,
+      lastShotId: undefined,
+      guardStart: 0,
       dash: 0,
       burst: 0,
       shield: 0,
@@ -564,6 +593,7 @@ function damage(
   team: number,
   owner: string,
   now: number,
+  rifle = false,
 ) {
   if (now < p.guard || now < p.immune) return;
   if (now < p.absorptionUntil && p.absorption > 0) {
@@ -572,9 +602,17 @@ function damage(
     amount -= absorbed;
     effect(r, "absorb", p, now, absorbed);
   }
+  if (rifle && p.hp === maxHealth(p) && amount >= p.hp) amount = p.hp - 1;
   if (amount <= 0) return;
   p.hp = Math.max(0, p.hp - amount);
-  effect(r, "hit", p, now, amount);
+  Object.assign(effect(r, "hit", p, now, amount), {
+    actor: owner,
+    target: p.id,
+    direction: (() => {
+      const source = r.players.find((a) => a.id === owner);
+      return source ? Math.atan2(source.y - p.y, source.x - p.x) : undefined;
+    })(),
+  });
   if (p.hp === 0) {
     p.respawn = now + 3000;
     p.deaths++;
@@ -587,6 +625,8 @@ function damage(
       id: r.eventId!,
       killer: killer?.name ?? "Arena",
       victim: p.name,
+      victimId: p.id,
+      killerId: owner,
       team: killer?.team ?? -1,
       at: now,
     });
@@ -604,7 +644,7 @@ export function tick(r: Room, now: number, dt: number) {
   const absent = [0, 1].filter(
     (t) => r.emptySince![t] !== null && now - r.emptySince![t]! >= 15000,
   );
-  if (absent.length) {
+  if (absent.length && !r.tutorial) {
     finish(r);
     r.finishReason = "forfeit";
     r.winner =
@@ -665,6 +705,7 @@ export function tick(r: Room, now: number, dt: number) {
     if (a.shield && now >= p.shield) {
       p.shield = now + 12000;
       p.guard = now + 1500;
+      p.guardStart = now - Math.min(150, p.shieldBackdate ?? 0);
       effect(r, "shield", p, now);
     }
     const motion = movementVelocity(p, a, now, dt, arena);
@@ -691,8 +732,17 @@ export function tick(r: Room, now: number, dt: number) {
         life,
         damage: outgoingDamage(p, damage, now),
         weaponId,
+        shotId: weaponId ? a.shotId : undefined,
+        catchup: weaponId ? Math.min(0.2, (p.rtt ?? 0) / 2000) : undefined,
       });
-    if (a.fire && now >= p.shot && !p.reloadAt && p.ammo > 0) {
+    if (
+      a.fire &&
+      now >= p.shot &&
+      !p.reloadAt &&
+      p.ammo > 0 &&
+      (a.shotId === undefined || a.shotId !== p.lastShotId)
+    ) {
+      p.lastShotId = a.shotId;
       p.shot = now + weapon.interval;
       p.ammo--;
       for (const spread of weapon.spread)
@@ -807,7 +857,7 @@ export function tick(r: Room, now: number, dt: number) {
           p.absorptionUntil = now + pickups.shield.duration;
         }
         pickup.availableAt = now + PICKUP_RESPAWN;
-        effect(r, "pickup", p, now);
+        Object.assign(effect(r, "pickup", p, now), { pickupKind: pickup.kind });
       }
     }
     const hazard = (arenas[arena].hazards ?? []).find(
@@ -825,7 +875,7 @@ export function tick(r: Room, now: number, dt: number) {
       if (Math.hypot(c.x - p.x, c.y - p.y) < 26) {
         r.scores[p.team] += mode === "blitz" ? 2 : 1;
         p.collected++;
-        effect(r, "crystal", { ...c, team: p.team }, now);
+        effect(r, "crystal", { ...c, team: p.team, id: p.id }, now);
         return false;
       }
       return true;
@@ -833,7 +883,9 @@ export function tick(r: Room, now: number, dt: number) {
   }
   r.bolts = r.bolts.filter((b) => {
     if (b.life <= 0) return false;
-    const travelTime = Math.min(dt, b.life);
+    const elapsed = dt + Math.min(0.2, b.catchup ?? 0);
+    b.catchup = undefined;
+    const travelTime = Math.min(elapsed, b.life);
     const steps = Math.max(
       1,
       Math.ceil((Math.hypot(b.vx, b.vy) * travelTime) / 8),
@@ -870,7 +922,8 @@ export function tick(r: Room, now: number, dt: number) {
           Math.hypot(p.x - b.x, p.y - b.y) > 20
         )
           continue;
-        if (now < p.guard) {
+        const hitAt = now - travelTime + ((step + 1) * travelTime) / steps;
+        if (hitAt >= (p.guardStart ?? -Infinity) && hitAt < p.guard) {
           b.vx = -b.vx;
           b.vy = -b.vy;
           b.owner = p.id;
@@ -879,14 +932,22 @@ export function tick(r: Room, now: number, dt: number) {
           b.x = p.x + (b.vx / n) * 28;
           b.y = p.y + (b.vy / n) * 28;
           effect(r, "reflect", p, now);
-          b.life -= dt;
+          b.life -= elapsed;
           return b.life > 0;
         }
-        damage(r, p, b.damage ?? 20, b.team, b.owner, now);
+        damage(
+          r,
+          p,
+          b.damage ?? 20,
+          b.team,
+          b.owner,
+          now,
+          b.weaponId === "rifle",
+        );
         return false;
       }
     }
-    b.life -= dt;
+    b.life -= elapsed;
     return b.life > 0;
   });
   const bounds = playableBounds(r, now);
@@ -935,6 +996,10 @@ export function tick(r: Room, now: number, dt: number) {
     }
   }
   // Simultaneous scores in overtime must produce a leader, rather than an arbitrary team winning.
+  if (r.tutorial) {
+    updateTutorial(r, now);
+    return;
+  }
   const changed = before.some((v, i) => v !== r.scores[i]);
   if (
     r.scores.some((s) => s >= modes[mode].target) ||

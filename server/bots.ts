@@ -1,3 +1,19 @@
+import { botLevels } from "./bot-config.js";
+import { findPath, seeded, type Point } from "./pathfinding.js";
+import type { Player } from "./game.js";
+const brains = new WeakMap<
+  Player,
+  {
+    next: number;
+    enemy: string;
+    seen: number;
+    fire: number;
+    path: Point[];
+    goal: string;
+    match?: string;
+  }
+>();
+const randoms = new WeakMap<Room, () => number>();
 import {
   classes,
   weapons,
@@ -29,6 +45,15 @@ export function manageBots(r: Room, actor: string, add: boolean) {
     b.weaponId = (Object.keys(weapons) as WeaponId[])[index % 3];
     b.hp = maxHealth(b);
     b.ammo = weapons[b.weaponId].magazine;
+    b.botLevel = r.botLevel ?? "normal";
+    if (b.botLevel === "easy") {
+      b.classId = "assault";
+      b.weaponId = "blaster";
+      b.hp = maxHealth(b);
+      b.ammo = weapons.blaster.magazine;
+    }
+    if (b.botLevel === "hard")
+      b.loadout = (["nova", "mend", "pulse", "blink"] as const)[index % 4];
     b.bot = true;
     b.ready = true;
     r.players.push(b);
@@ -36,8 +61,47 @@ export function manageBots(r: Room, actor: string, add: boolean) {
   return true;
 }
 export function driveBots(r: Room, now: number) {
+  let random = randoms.get(r);
+  if (!random) {
+    random = seeded(r.botSeed ?? 1);
+    randoms.set(r, random);
+  }
   for (const p of r.players) {
     if (!p.bot || p.respawn) continue;
+    const level = p.botLevel ?? r.botLevel ?? "normal",
+      config = botLevels[level];
+    if (level === "training") {
+      p.hp = Math.min(p.hp, 30);
+      p.input = {
+        x: 0,
+        y: 0,
+        angle: 0,
+        fire: false,
+        dash: false,
+        shield: false,
+        special: false,
+      };
+      p.lastInput = now;
+      continue;
+    }
+    let brain = brains.get(p);
+    if (!brain || brain.match !== r.matchId) {
+      brain = {
+        next: 0,
+        enemy: "",
+        seen: now,
+        fire: 0,
+        path: [],
+        goal: "",
+        match: r.matchId,
+      };
+      brains.set(p, brain);
+    }
+    if (now < brain.next) {
+      p.lastInput = now;
+      continue;
+    }
+    brain.next = now + config.decisionMs;
     const enemy = r.players
       .filter(
         (e) =>
@@ -94,10 +158,52 @@ export function driveBots(r: Room, now: number) {
         break;
       }
     }
+    if (brain.enemy !== (enemy?.id ?? "")) {
+      brain.enemy = enemy?.id ?? "";
+      brain.seen = now;
+    }
+    const lead =
+      enemy && config.leadsTargets
+        ? Math.min(0.6, distance / weapons[p.weaponId].speed)
+        : 0;
     const aim = enemy
-      ? Math.atan2(enemy.y - p.y, enemy.x - p.x) +
-        Math.sin(now / 300 + p.x) * 0.14
+      ? Math.atan2(
+          enemy.y + (enemy.vy ?? 0) * lead - p.y,
+          enemy.x + (enemy.vx ?? 0) * lead - p.x,
+        ) +
+        ((random() * 2 - 1) * config.aimErrorDeg * Math.PI) / 180
       : angle;
+    const goal = `${Math.floor(target.x / 32)}:${Math.floor(target.y / 32)}`;
+    if (goal !== brain.goal || brain.path.length === 0) {
+      brain.path = findPath(p, target, r.arena ?? "astral", r.brokenWalls);
+      brain.goal = goal;
+    }
+    while (
+      brain.path.length &&
+      Math.hypot(brain.path[0].x - p.x, brain.path[0].y - p.y) < 20
+    )
+      brain.path.shift();
+    const waypoint = brain.path[0];
+    if (waypoint) {
+      const a = Math.atan2(waypoint.y - p.y, waypoint.x - p.x);
+      x = Math.cos(a);
+      y = Math.sin(a);
+    }
+    if (enemy && distance < 250 && random() < config.dodgeChance) {
+      const a = aim + Math.PI / 2;
+      if (
+        !blocked(
+          p.x + Math.cos(a) * 30,
+          p.y + Math.sin(a) * 30,
+          13,
+          r.arena,
+          r.brokenWalls,
+        )
+      ) {
+        x = Math.cos(a);
+        y = Math.sin(a);
+      }
+    }
     const los =
       enemy &&
       Array.from(
@@ -111,17 +217,24 @@ export function driveBots(r: Room, now: number) {
             r.brokenWalls,
           ),
       ).every(Boolean);
+    const shoot =
+      distance < weapons[p.weaponId].speed * weapons[p.weaponId].life &&
+      !!los &&
+      now - brain.seen >= config.reactionMs &&
+      now >= brain.fire;
+    if (shoot)
+      brain.fire = now + weapons[p.weaponId].interval * config.fireIntervalMul;
+    const ability = random() < config.abilityUseChance;
     p.input = {
       x,
       y,
       angle: aim,
-      fire:
-        distance < weapons[p.weaponId].speed * weapons[p.weaponId].life &&
-        !!los,
-      dash: p.hp < maxHealth(p) * 0.4,
-      shield: distance < 260,
+      fire: shoot,
+      dash: ability && p.hp < maxHealth(p) * 0.4,
+      shield: ability && distance < 260,
       special:
-        p.loadout === "mend" ? p.hp < maxHealth(p) * 0.75 : distance < 330,
+        ability &&
+        (p.loadout === "mend" ? p.hp < maxHealth(p) * 0.75 : distance < 330),
     };
     p.lastInput = now;
   }

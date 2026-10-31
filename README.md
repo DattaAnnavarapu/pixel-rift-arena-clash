@@ -2,36 +2,36 @@
 
 A 2–4-player, no-login team arena game built with React 19, Phaser 3, TypeScript, Node.js, Express and Socket.IO. One process serves both the client and the authoritative game server.
 
-## v1.2 Phase 1 preview — 1.2.0-alpha.1
+## v1.2 event candidate — 1.2.0-alpha.2
 
-This branch adds classes, weapons and four pickup types. It is a development preview, not the full v1.2 release. The architecture review, implementation plan and acceptance checks are in [docs/V1_2_PHASE1_PLAN.md](docs/V1_2_PHASE1_PLAN.md).
+This branch adds stability, high-ping transport tools, mobile settings, classes, weapons, four pickup types, bot difficulty, guided training and combat feedback. See [the phase-by-phase findings and acceptance log](docs/EVENT_STABILIZATION.md). It is a development preview, not the full v1.2 release. The architecture review, implementation plan and acceptance checks are in [docs/V1_2_PHASE1_PLAN.md](docs/V1_2_PHASE1_PLAN.md).
 
-| Class | HP | Move speed | Outgoing damage |
-|---|---:|---:|---:|
-| Assault | 100 | 175 px/s | 100% |
-| Tank | 140 | 145 px/s | 85% |
-| Scout | 80 | 210 px/s | 90% |
+| Class   |  HP | Move speed | Outgoing damage |
+| ------- | --: | ---------: | --------------: |
+| Assault | 100 |   175 px/s |            100% |
+| Tank    | 140 |   145 px/s |             85% |
+| Scout   |  80 |   210 px/s |             90% |
 
-| Weapon | Base damage | Fire interval | Magazine | Auto reload | Range |
-|---|---:|---:|---:|---:|---:|
-| Blaster | 20 | 0.4s | 10 | 1.2s | 378px |
-| Shotgun | 8 × 5 pellets | 0.9s | 4 | 1.6s | 231px |
-| Precision rifle | 50 | 1.0s | 4 | 1.8s | 704px |
+| Weapon          |   Base damage | Fire interval | Magazine | Auto reload | Range |
+| --------------- | ------------: | ------------: | -------: | ----------: | ----: |
+| Blaster         |            20 |          0.8s |       10 |        1.2s | 378px |
+| Shotgun         | 8 × 5 pellets |          1.5s |        4 |        1.6s | 231px |
+| Precision rifle |            50 |          1.5s |        4 |        1.8s | 704px |
 
 Class and damage-pickup multipliers apply before one rounding step to each projectile/Pulse hit. Class, weapon and special are selected independently in the lobby. The last shot starts automatic reload; held fire resumes after it. Specials use their own cooldowns and no ammunition. HP, ammo and buffs reset on respawn/rematch. These are starting balance values to tune in playtests.
 
-| Pickup | Effect | Duration | Respawn |
-|---|---|---|---|
-| Health | +35 HP, capped at class maximum | Instant | 15s |
-| Shield | 35 absorption; excess damage reaches HP; no reflection | 5s or depleted | 15s |
-| Speed | Class move speed ×1.4 | 5s | 15s |
-| Damage | Outgoing damage ×2 | 5s | 15s |
+| Pickup | Effect                                                 | Duration       | Respawn |
+| ------ | ------------------------------------------------------ | -------------- | ------- |
+| Health | +35 HP, capped at class maximum                        | Instant        | 15s     |
+| Shield | 35 absorption; excess damage reaches HP; no reflection | 5s or depleted | 15s     |
+| Speed  | Class move speed ×1.4                                  | 5s             | 15s     |
+| Damage | Outgoing damage ×2                                     | 5s             | 15s     |
 
 Repeated shield collection refreshes to 35 rather than stacking. A full active shield or full HP does not waste its pickup. Shield pickups sit at each arena's center; the E ability still reflects projectiles. Fast bolts use short collision steps through walls and players.
 
 The weapon HUD shows magazine, fire cooldown and auto-reload time; buff readouts show shield/speed/damage duration. Classes have subtle procedural silhouette changes, and weapons have distinct sounds/projectile accents. PR #7's input pump, dead zone, MOVE / AIM + FIRE and three ability buttons are preserved; reloading needs no extra touch button. Protocol is **3**; reload older tabs.
 
-Validation: 70 automated tests, TypeScript/production build and production smoke checks. Physical-phone responsiveness, full two-human rounds and balance are manual acceptance checks. International testing remains outside this phase and is not marked fixed. No profiles, rankings, new maps or persistent progression are included yet.
+Validation: 93 automated tests (including the original 70), TypeScript/production build and production smoke checks. Physical-phone responsiveness, full two-human rounds and balance are manual acceptance checks. International testing remains outside this phase and is not marked fixed. No profiles, rankings, new maps or persistent progression are included yet.
 
 ## Run the game from GitHub in VS Code (Windows)
 
@@ -50,7 +50,7 @@ code .
 
 ```powershell
 git fetch origin
-git switch feature/v1.2-phase1-combat
+git switch feature/event-stabilization
 ```
 
 4. Check that Node.js and npm work, then install dependencies:
@@ -78,8 +78,8 @@ Open the game in two or more browser tabs/windows. Create a room, copy the six-c
 ### Update your local checkout
 
 ```powershell
-git switch feature/release-ready
-git pull origin feature/release-ready
+git switch feature/event-stabilization
+git pull origin feature/event-stabilization
 npm ci
 npm run dev
 ```
@@ -122,7 +122,7 @@ npm run build
 - Reflective shields and aim-directed stationary dashes; hosts can fill/remove explicitly labeled bots for solo practice. Bots count as active team members and keep their ready status through lobby setting changes.
 - Procedural lava/vents, portals, concealing bushes, destructible walls, mirrored flank crystals, pickups and slippery ice (see Levels below).
 - Match forfeits when one team has zero online players for 15 seconds. Both teams absent for the grace period is a draw. Normal room cleanup remains separate.
-- Pooled combat effects; 600ms snapshot effects; animation fields replace full player inputs. Expired player tokens are removed. Express 4 types align with Express 4, tsx is a production dependency, and npm start uses a production-only entrypoint without Vite.
+- Pooled combat effects; 600ms snapshot effects; animation fields replace full player inputs. Expired player tokens are removed. Express 4 types align with Express 4, npm run build compiles the server, and npm start runs build/server/start.js without tsx or Vite.
 - Original 32-note (two-section) music loop: 230ms steps normally, 165ms in overtime or once a team reaches 80% of the score target. One master gain/compressor protects the mix; hits/KOs fade with distance.
 - Browser-local wins, KOs and most-played loadout persist across refreshes. They are convenience stats, not competitive records. Match/player IDs prevent reconnect double-counting; clearing browser storage resets them.
 
@@ -141,15 +141,15 @@ All modes except Blitz last three minutes unless a team reaches the target first
 
 WASD/arrows move, mouse aims, hold click to fire the selected weapon (see the Phase 1 table; automatic reload), Space dashes (five-second cooldown), E shields for 1.5 seconds (12-second cooldown), Q uses Nova/Mend/Blink/Pulse. Shields reflect bolts with ownership transferred to the defender; a reflected bolt can be reflected again. Touch devices have MOVE and AIM + FIRE sticks plus DASH/SHIELD/special buttons; landscape is recommended.
 
-| Action     | Desktop                                              | Mobile                      |
-| ---------- | ---------------------------------------------------- | --------------------------- |
-| Move / aim | WASD or arrows / mouse                               | MOVE / AIM + FIRE sticks           |
+| Action     | Desktop                                              | Mobile                           |
+| ---------- | ---------------------------------------------------- | -------------------------------- |
+| Move / aim | WASD or arrows / mouse                               | MOVE / AIM + FIRE sticks         |
 | Fire       | Hold click                                           | Drag AIM + FIRE; release to stop |
-| Dash       | Space · 5s, 180ms burst; aim direction if stationary | DASH                        |
-| Shield     | E · 1.5s duration, 12s cooldown, reflects bolts      | SHIELD                      |
-| Special    | Q · Nova 8s, Mend 12s, Blink 10s, Pulse 9s           | NOVA / MEND / BLINK / PULSE |
-| Scoreboard | Hold Tab                                             | SCORES button               |
-| Practice   | Host: FILL WITH BOTS / REMOVE BOTS                   | Same lobby buttons          |
+| Dash       | Space · 5s, 180ms burst; aim direction if stationary | DASH                             |
+| Shield     | E · 1.5s duration, 12s cooldown, reflects bolts      | SHIELD                           |
+| Special    | Q · Nova 8s, Mend 12s, Blink 10s, Pulse 9s           | NOVA / MEND / BLINK / PULSE      |
+| Scoreboard | Hold Tab                                             | SCORES button                    |
+| Practice   | Host: FILL WITH BOTS / REMOVE BOTS                   | Same lobby buttons               |
 
 Create a six-character room code or join an invitation URL. Up to two players per team; 2-vs-1 is allowed with a warning. The host chooses the arena and mode. Changing either clears everyone's ready status. Each player chooses a loadout and marks ready; the host starts when all connected players are ready and each team has someone. Results allow a new ready check and rematch. No accounts or installs. Quick Play automatically readies newcomers; changing a special preserves readiness and the countdown. UNREADY pauses the queue.
 
@@ -178,7 +178,7 @@ $env:NODE_ENV = "production"
 npm start
 ```
 
-`render.yaml` configures a single Node web service, `npm ci && npm run build`, `npm start`, `NODE_ENV=production`, and `/health`. Render supplies PORT. The checked-in source does not include generated `dist/`; deployment builds it. Reset NODE_ENV or open a new terminal before returning to development mode.
+`render.yaml` configures a single Node web service, `npm ci --include=dev && npm run build`, `npm start`, `NODE_ENV=production`, and `/health`. Render supplies PORT. The checked-in source does not include generated `dist/`; deployment builds it. Reset NODE_ENV or open a new terminal before returning to development mode.
 
 The existing Render service tracks `main`. This feature branch is for review and is **not automatically deployed to production**. Merge only after approval. After deploying, verify `/health`, join from independent devices, and test a cold start. Free hosting may sleep. Do not split client/backend without adding a configurable socket origin and explicit CORS handling.
 
@@ -206,3 +206,35 @@ Phone matches use a compact HUD and a separate touch-control area. Portrait plac
 Local movement, weapon aim and a cosmetic muzzle flash react immediately. Damage, projectiles and abilities remain server-authoritative and still wait for network transit. High RTT cannot be eliminated by prediction. The match toolbar shows RTT; lobbies show a per-process server identifier. All players must use the exact same deployed URL and mode. There is no country filter in matchmaking. If public lobbies differ, compare server IDs, modes and whether an earlier lobby already started. Different server IDs indicate separate processes or a restart; rooms currently live in one process and are not shared across replicas.
 
 Connections start with HTTP polling and attempt WebSocket upgrade. Polling-only multiplayer is covered by a network regression. In-match snapshots and inputs avoid an unbounded stale backlog; pending action taps are not drained while the transport is unwritable. This is connection hardening, not verification that the reported cross-country failure is resolved. Record both server IDs, room codes, RTT, countries and visible errors for the next public retest.
+
+### Stabilization Phase 1
+
+Socket exception boundaries, separate token buckets, bounded payloads, atomic reconnect takeover, health tick/memory/room diagnostics, HTTP compression and immutable hashed-asset caching. Protocol remains 3. Render is explicitly one Ohio instance; free-plan cold starts remain a manual check. Uncaught error logging keeps the process alive but cannot certify state integrity; health error counters require operator review.
+
+### Stabilization Phase 2 — latency tools
+
+`npm run test:high-ping` runs four real clients through a full Blitz match using 200ms simulated one-way delay (400ms RTT), 30ms jitter and 3% volatile-message loss. Set PLAYERS=2/3/4 to vary clients. SIM_LATENCY_MS is one-way delay; SIM_JITTER_MS and SIM_LOSS are bounded. Production forcibly disables all injection. Control/ack messages are delayed but not dropped; only volatile inputs/states lose messages. This is local fault testing, not international/load certification.
+
+Optional protocol-3 shot IDs reconcile cosmetic bolts with authoritative shots; projectile catch-up is capped at 200ms. Remote snapshot interpolation adapts to spacing/jitter (100–250ms), packets repeat two previous inputs, and server-measured RTT informs lobby warnings and queue preference. Legacy protocol-3 clients may omit these fields. WebSocket-first transport retains polling fallback and regression coverage. Region probing is an opt-in helper with no configured endpoints and no default requests.
+
+Dash/shield predictions are visual only. Shield activation records a capped 150ms backdated start, but does not rewind damage or scores already committed; full historical shield rollback remains unresolved and must not be advertised as implemented.
+
+### Stabilization Phase 3 — mobile preferences
+
+Standalone manifest, optional fullscreen/orientation lock, bounded stick size, travel sensitivity, left-handed sticks, supported-device haptics and quality/shadow preferences persist locally. Low quality suppresses particles/shadows immediately and caps rendering at 30fps on the next match. Hidden tabs suspend the render loop and AudioContext; controls reset on blur/cancel. Settings render outside the touch-locked game container so long dialogs can scroll. Fullscreen, orientation lock and vibration depend on browser support; no offline play is promised.
+
+### Stabilization Phase 4 — balance gate
+
+Cadence is now 800ms Blaster, 1500ms Shotgun and 1500ms rifle. The TTK gate covers nine attacker class/weapon combinations against an unshielded stationary 100-HP target, with and without attacker damage boost; it includes reloads and assumes all shotgun pellets hit. Target 1.5–4s measures elapsed time after the first shot, not acquisition/travel. Defender shields, misses, other target classes and terrain require separate playtests. Projectile damage is unchanged to preserve existing combat regressions. A rifle hit cannot take a full-class-health target directly to zero: excess damage leaves 1 HP, so the next hit can finish. This preserves damage-pickup scaling without a hidden rifle-only multiplier. Rifle speed is 720px/s, lifetime 704/720s: range remains 704px. Balance feel is unverified on devices.
+
+### Stabilization Phase 5 — bots
+
+Hosts can select Easy/Normal/Hard for all private-room bots. Shared presets govern reaction, aim error, firing decisions, leading, dodging and ability choices. Easy uses Assault/Blaster; Hard varies classes, weapons and specials. All movement, ammo, cooldown and damage still run through the normal server rules; bushes hide enemies from bots. Four-neighbour A* uses shared wall clearance and broken walls, with cached paths and decision intervals. Internal training bots stay still, do not shoot and have at most 30HP. Seeded tests use 20 runs per matchup; these measure the fixed scenario, not general win-rate guarantees. Per-bot overrides and adaptive difficulty are not enabled.
+
+### Stabilization Phase 6 — guided tutorial
+
+TUTORIAL/PLAY TUTORIAL creates a private one-human training round. It cannot be joined by code or selected by Quick Play, has no timer/overtime/forfeit, and never updates browser wins/KOs/favorite kit. Eleven snapshot-driven stages cover kit selection, move ring, three real dummy hits, automatic reload, dash, reflection, special, four pickups, crystal, an Easy-bot fight/respawn, and completion. Training bots are stationary/non-firing/30HP; reflection practice uses a harmless server projectile emitter that retries missed bolts. Skip step, skip round and replay are explicit actions, not invented progress. Normal controls remain available; stuck hints strengthen after 15s. First-run dismissal/completion is local, with a permanent replay entry. The two-minute duration is an estimate, not a measured completion guarantee.
+
+### Stabilization Phase 7 — feedback
+
+Confirmed server hits drive hit markers, optional coarse incoming direction and a killed-by card (no historical kill-cam). A cosmetic ammo ring, static low-HP vignette, team shapes, ping colors and scoreboard RTT improve readability. Synthesized control-taken/heartbeat cues and stereo panning use the existing master volume/compressor; hidden tabs are silent and reduced-motion/effect options remain respected. The emote wheel offers four whitelisted, per-socket-rate-limited messages; no free text or client rewards. These changes need listening and readability checks on physical devices.

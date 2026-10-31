@@ -1,3 +1,7 @@
+import { ActionLatch } from "./action-latch";
+import { emotes, teamMarkers } from "../server/social";
+import { pingClass } from "./feedback";
+import { TutorialRound } from "./ui/TutorialRound";
 import { classes, weapons, maxHealth } from "../server/combat";
 import { CombatSelection } from "./ui/CombatSelection";
 import React, { useEffect, useRef, useState } from "react";
@@ -43,13 +47,14 @@ import {
   settings as initialSettings,
   saveSettings,
   type Settings,
+  haptic,
 } from "./settings";
 import { ReleasePanel } from "./ui/ReleasePanels";
 import { joystickVector } from "./joystick";
 import "./style.css";
 const socket = io({
   autoConnect: false,
-  transports: ["polling", "websocket"],
+  transports: ["websocket", "polling"],
   tryAllTransports: true,
   reconnectionDelay: 500,
   reconnectionDelayMax: 4000,
@@ -93,12 +98,13 @@ function Stick({ aim = false }: { aim?: boolean }) {
       vector = joystickVector(
         e.clientX - r.left - r.width / 2,
         e.clientY - r.top - r.height / 2,
-        r.width * 0.4,
+        (r.width * 0.4) / (aim ? (initialSettings.aimSensitivity ?? 1) : 1),
       ),
       { x, y } = vector;
     if (aim) {
       touch.aim = true;
       if (vector.active) input.angle = Math.atan2(y, x);
+      if (vector.active && !touch.firing) haptic(5);
       touch.firing = vector.active;
     } else {
       touch.move = true;
@@ -144,6 +150,7 @@ function TouchButton({
   label: string;
   remaining?: number;
 }) {
+  const activation = useRef(new ActionLatch());
   const down = (on: boolean) => {
     if (action === "fire") input.fire = on;
     else touch[action] = on;
@@ -152,14 +159,26 @@ function TouchButton({
     <button
       className={`touch-${action} ${remaining > 0 ? "cooling" : "available"}`}
       aria-label={`${label}${remaining > 0 ? `, ready in ${remaining} seconds` : ""}`}
+      onClick={(e) => {
+        if (activation.current.click(e.detail)) {
+          unlock();
+          haptic();
+          queueAction(action);
+        }
+      }}
       onPointerDown={(e) => {
+        activation.current.down();
         e.currentTarget.setPointerCapture(e.pointerId);
         unlock();
+        haptic();
         queueAction(action);
         down(true);
       }}
       onPointerUp={() => down(false)}
-      onPointerCancel={() => down(false)}
+      onPointerCancel={() => {
+        activation.current.cancel();
+        down(false);
+      }}
       onLostPointerCapture={() => down(false)}
     >
       <b>{label}</b>
@@ -317,6 +336,7 @@ function App() {
     [help, setHelp] = useState(false);
   const [engineLoading, setEngineLoading] = useState(false),
     [engineError, setEngineError] = useState("");
+  const [emoteOpen, setEmoteOpen] = useState(false);
   const [serverId, setServerId] = useState("");
   const [panel, setPanel] = useState<"tutorial" | "settings" | null>(null),
     [settings, setSettings] = useState(initialSettings),
@@ -340,7 +360,12 @@ function App() {
     pauseInput(!!panel);
     return () => pauseInput(false);
   }, [panel]);
-  function join(create: boolean, resume = false, matchmake = false) {
+  function join(
+    create: boolean,
+    resume = false,
+    matchmake = false,
+    tutorial = false,
+  ) {
     unlock();
     setPending(true);
     socket.timeout(8000).emit(
@@ -350,6 +375,7 @@ function App() {
         code: new URLSearchParams(location.search).get("room") || code,
         create,
         matchmake,
+        tutorial: tutorial || undefined,
         mode: quickMode,
         protocol: PROTOCOL_VERSION,
         token: resume ? sessionStorage.getItem("rift-token") : undefined,
@@ -398,6 +424,10 @@ function App() {
       setNotice(r.message);
       resetInput();
     };
+    const probe = (ack: () => void) => {
+      if (typeof ack === "function") ack();
+    };
+    socket.on("probe", probe);
     socket.on("hello", hello);
     socket.on("server-closing", serverClosing);
     const disconnected = () => {
@@ -405,10 +435,20 @@ function App() {
       resetInput();
     };
     const snapshot = (r: Snapshot) => {
+      if (!me || !r.players.some((p) => p.id === me)) return;
+      if (state?.code === r.code && r.now < state.now) return;
       lastSnapshot.current = Date.now();
       setSnapshotStale(false);
       if (state?.matchId !== r.matchId) setScoreboard(false);
       if (state?.phase !== "finished" && r.phase === "finished") sound("win");
+      if (
+        r.mode === "control" &&
+        r.controlTeam !== state?.controlTeam &&
+        (r.controlTeam ?? -1) >= 0
+      )
+        setNotice(
+          `RIFT CONTROL TAKEN · ${r.controlTeam ? "▲ AZURE" : "■ CRIMSON"}`,
+        );
       updateMusic(r);
       try {
         const next = updateProgress(
@@ -422,6 +462,11 @@ function App() {
           setProgress(next);
         }
       } catch {}
+      if (r.tutorial && (r.tutorialState?.step ?? 0) >= 10) {
+        try {
+          localStorage.setItem("rift-tutorial-done", "yes");
+        } catch {}
+      }
       receive(r);
       setS(r);
     };
@@ -490,6 +535,7 @@ function App() {
     return () => {
       clearInterval(timer);
       clearInterval(ping);
+      socket.off("probe", probe);
       socket.off("hello", hello);
       socket.off("server-closing", serverClosing);
       socket.off("connect", connected);
@@ -510,7 +556,8 @@ function App() {
     if (!s || ["lobby", "finished"].includes(s.phase) || !mount.current) return;
     let disposed = false,
       game: import("phaser").Game | undefined,
-      resizeObserver: ResizeObserver | undefined;
+      resizeObserver: ResizeObserver | undefined,
+      visibility: (() => void) | undefined;
     setEngineLoading(true);
     setEngineError("");
     void Promise.all([import("phaser"), import("./arena")])
@@ -522,6 +569,7 @@ function App() {
           width: 960,
           height: 600,
           pixelArt: true,
+          fps: { limit: initialSettings.quality === "low" ? 30 : 0 },
           backgroundColor: "#151b30",
           scale: {
             mode: Phaser.Scale.FIT,
@@ -531,6 +579,12 @@ function App() {
         });
         resizeObserver = new ResizeObserver(() => game?.scale.refresh());
         resizeObserver.observe(mount.current!);
+        visibility = () => {
+          if (document.hidden) game?.loop.sleep();
+          else game?.loop.wake();
+        };
+        document.addEventListener("visibilitychange", visibility);
+        if (document.hidden) game.loop.sleep();
         setEngineLoading(false);
       })
       .catch(() => {
@@ -541,6 +595,8 @@ function App() {
       });
     return () => {
       disposed = true;
+      if (visibility)
+        document.removeEventListener("visibilitychange", visibility);
       resizeObserver?.disconnect();
       game?.destroy(true);
     };
@@ -594,7 +650,17 @@ function App() {
     }
   }
   return (
-    <main className={s && !lobby ? "in-match" : ""} onPointerDown={unlock}>
+    <main
+      data-tutorial-step={s?.tutorial ? s.tutorialState?.step : undefined}
+      className={s && !lobby ? "in-match" : ""}
+      data-left={settings.leftHanded === true}
+      style={
+        {
+          "--stick-size": `${settings.stickSize ?? 104}px`,
+        } as React.CSSProperties
+      }
+      onPointerDown={unlock}
+    >
       <header>
         <a href="/" className="brand">
           <b>✦</b>
@@ -684,6 +750,35 @@ function App() {
       )}
       {!s ? (
         <>
+          <aside
+            className="first-tutorial"
+            hidden={
+              localStorage.getItem("rift-tutorial-done") === "yes" ||
+              localStorage.getItem("rift-tutorial-dismissed") === "yes"
+            }
+          >
+            <b>New here? Try the guided tutorial (about 2 minutes).</b>
+            <button onClick={() => join(true, false, false, true)}>
+              TUTORIAL
+            </button>
+            <button
+              onClick={(e) => {
+                try {
+                  localStorage.setItem("rift-tutorial-dismissed", "yes");
+                } catch {}
+                e.currentTarget.parentElement!.hidden = true;
+              }}
+            >
+              NO THANKS
+            </button>
+          </aside>
+          <button
+            className="tutorial-launch"
+            onClick={() => join(true, false, false, true)}
+            disabled={!online || pending}
+          >
+            PLAY TUTORIAL
+          </button>
           <section className="hero">
             <div className="hero-copy">
               <span className="eyebrow">THE RIFT IS OPEN · 2–4 PLAYERS</span>
@@ -825,16 +920,46 @@ function App() {
         </>
       ) : (
         <>
+          {s.tutorial && (
+            <TutorialRound
+              s={s}
+              now={time}
+              onAction={(a) => socket.emit("tutorial", a)}
+              onLeave={leave}
+            />
+          )}
           {!lobby && (
             <nav className="mobile-match-bar" aria-label="Match controls">
               <span>
                 {rule.name}
-                <small className="match-ping">
+                <small
+                  className={`match-ping ${pingClass(latency ?? undefined)}`}
+                >
                   {latency === null ? "…" : `${latency}ms`}
                 </small>
               </span>
               <button onClick={() => setScoreboard(!scoreboard)}>SCORES</button>
               <button onClick={() => setPanel("settings")}>SETTINGS</button>
+              <button
+                aria-label="Fullscreen"
+                onClick={async () => {
+                  try {
+                    if (!document.fullscreenElement)
+                      await document.documentElement.requestFullscreen();
+                    const orientation =
+                      screen.orientation as ScreenOrientation & {
+                        lock?: (value: string) => Promise<void>;
+                      };
+                    await orientation.lock?.("landscape");
+                  } catch {
+                    setNotice(
+                      "Fullscreen or orientation lock unavailable in this browser.",
+                    );
+                  }
+                }}
+              >
+                ⛶
+              </button>
               <button onClick={leave}>LEAVE</button>
             </nav>
           )}
@@ -950,6 +1075,19 @@ function App() {
                 </div>
                 {host && !s.publicMatch && (
                   <div className="bot-controls">
+                    <label>
+                      BOT LEVEL{" "}
+                      <select
+                        value={s.botLevel ?? "normal"}
+                        onChange={(e) =>
+                          configure({ botLevel: e.target.value })
+                        }
+                      >
+                        <option value="easy">Easy</option>
+                        <option value="normal">Normal</option>
+                        <option value="hard">Hard</option>
+                      </select>
+                    </label>
                     <button
                       onClick={() => configure({ bots: true })}
                       disabled={s.players.length >= 4}
@@ -989,6 +1127,9 @@ function App() {
                               </b>
                               <small>
                                 {`${classes[p.classId].name} · ${weapons[p.weaponId].name} · ${loadouts[p.loadout].name}`}
+                                {p.rtt !== undefined
+                                  ? ` · ${p.rtt}ms${p.rtt > 250 ? " HIGH PING" : ""}`
+                                  : ""}
                                 {s.phase === "finished"
                                   ? ` · ${p.kills} K / ${p.deaths} D`
                                   : ""}
@@ -1107,18 +1248,24 @@ function App() {
           ) : (
             <div className="battle-hud">
               <div className="score-team red">
-                <span>CRIMSON</span>
+                <span>■ CRIMSON</span>
                 <strong>{s.scores[0]}</strong>
               </div>
               <div className="score-clock">
-                <b>{s.phase === "overtime" ? "SUDDEN DEATH" : timer}</b>
+                <b>
+                  {s.tutorial
+                    ? "TRAINING"
+                    : s.phase === "overtime"
+                      ? "SUDDEN DEATH"
+                      : timer}
+                </b>
                 <small>
                   {rule.description} · TO {rule.target}
                 </small>
               </div>
               <div className="score-team blue">
                 <strong>{s.scores[1]}</strong>
-                <span>AZURE</span>
+                <span>▲ AZURE</span>
               </div>
             </div>
           )}
@@ -1150,6 +1297,32 @@ function App() {
                 >
                   SCORES · TAB
                 </button>
+                <button
+                  className="emote-toggle"
+                  onClick={() => setEmoteOpen(!emoteOpen)}
+                  aria-label="Emote wheel"
+                >
+                  ☺
+                </button>
+                {emoteOpen && (
+                  <div className="emote-wheel">
+                    <b>EMOTE</b>
+                    {Object.entries(emotes).map(([id, label]) => (
+                      <button
+                        key={id}
+                        onClick={() => {
+                          socket.emit("emote", { id });
+                          setEmoteOpen(false);
+                        }}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {self && self.hp > 0 && self.hp < maxHealth(self) * 0.25 && (
+                  <div className="low-health-vignette" />
+                )}
                 {scoreboard && (
                   <div className="scoreboard">
                     <h3>MATCH SCOREBOARD</h3>
@@ -1166,12 +1339,13 @@ function App() {
                         {s.players.map((p) => (
                           <tr key={p.id} className={p.team ? "blue" : "red"}>
                             <td>
-                              {p.name}
+                              {teamMarkers[p.team === 1 ? 1 : 0]} {p.name}
                               <small className="score-kit">
                                 {classes[p.classId].name} ·{" "}
                                 {weapons[p.weaponId].name}
                               </small>
                             </td>
+                            <td className={pingClass(p.rtt)}>{p.rtt ?? "—"}</td>
                             <td>{p.kills}</td>
                             <td>{p.deaths}</td>
                             <td>{p.collected}</td>
@@ -1194,6 +1368,13 @@ function App() {
             {self?.respawn && !lobby ? (
               <div className="respawn">
                 <span>RIFT RECALL</span>
+                <small>
+                  KILLED BY{" "}
+                  {s.feed
+                    ?.slice()
+                    .reverse()
+                    .find((f) => f.victimId === id)?.killer ?? "Arena"}
+                </small>
                 <small>
                   {(() => {
                     const ally = s.players
@@ -1380,9 +1561,9 @@ function App() {
               dashes (5s); E shields for 1.5s (12s). Q fires three 15-damage
               Nova bolts (8s), heals 30 HP with Mend (12s), or Blinks up to
               120px toward aim without crossing walls (10s). Shields reflect
-              bolts. Blaster fires 20-damage bolts every 0.4s; shotgun fires
-              five 8-damage pellets every 0.9s; rifle fires 50-damage bolts
-              every 1s. Class modifiers apply. Weapons reload automatically.
+              bolts. Blaster fires 20-damage bolts every 0.8s; shotgun fires
+              five 8-damage pellets every 1.5s; rifle fires 50-damage bolts
+              every 1.5s. Class modifiers apply. Weapons reload automatically.
               Pulse deals 20 damage in a 120px radius and pushes enemies (9s).
               Shields block Pulse. No friendly fire.
             </p>

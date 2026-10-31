@@ -1,3 +1,5 @@
+import { installProcessLogging } from "./robustness.js";
+installProcessLogging();
 // npm start is production-only; npm run dev owns the Vite middleware.
 process.env.NODE_ENV = "production";
 const { createGameServer } = await import("./index.js");
