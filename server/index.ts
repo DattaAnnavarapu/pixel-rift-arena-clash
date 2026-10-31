@@ -1,3 +1,4 @@
+import { InputLatch } from "./input-latch.js";
 import { isEmote } from "./social.js";
 import { setupTutorial, skipTutorialStep } from "./tutorial.js";
 import { isBotLevel } from "./bot-config.js";
@@ -41,6 +42,7 @@ export async function createGameServer(
   options: { port?: number; serveClient?: boolean } = {},
 ) {
   const faults = new FaultLink();
+  const inputLatch = new InputLatch();
   const instance = randomBytes(4).toString("hex");
   let closing = false;
   const owners = new Map<string, string>(),
@@ -105,7 +107,8 @@ export async function createGameServer(
         snapshot(r, Date.now(), socket.data.playerId),
       );
       faults.send(() => {
-        if (socket.connected) target.emit("state", view);
+        if (socket.connected && socket.rooms.has(r.code))
+          target.emit("state", view);
       }, ["playing", "overtime"].includes(r.phase));
     }
   }
@@ -291,6 +294,7 @@ export async function createGameServer(
       const joined = room.players.find((p) => p.id === id)!;
       if (room.publicMatch && room.phase === "lobby") joined.ready = true;
       if (room.tutorial && !room.tutorialState) setupTutorial(room, Date.now());
+      inputLatch.consume(joined);
       joined.lastSequence = -1;
       joined.rtt = s.data.rtt;
       owners.set(id, s.id);
@@ -468,7 +472,8 @@ export async function createGameServer(
       }
       if (!latest) return;
       p.lastInput = Date.now();
-      p.input = { ...latest, ...actions };
+      inputLatch.capture(p, actions);
+      p.input = latest;
       p.shieldBackdate = Math.min(150, (p.rtt ?? 0) / 2);
     });
     on("disconnect", () => {
@@ -514,7 +519,20 @@ export async function createGameServer(
     for (const [code, r] of rooms) {
       try {
         updateMatchmaking(r, now);
+        const held = r.players
+          .filter((p) => !p.bot)
+          .map((p) => ({ p, input: { ...p.input } }));
+        for (const { p } of held) {
+          const pending = inputLatch.consume(p);
+          if (pending)
+            for (const key of ["fire", "dash", "shield", "special"] as const)
+              p.input[key] = !!p.input[key] || !!pending[key];
+        }
         tick(r, now, dt);
+        for (const { p, input } of held)
+          if (!p.lastInput || now - p.lastInput <= 500)
+            for (const key of ["fire", "dash", "shield", "special"] as const)
+              p.input[key] = !!input[key];
         if (frames % 2 === 0) emit(r);
       } catch (error) {
         report(`room:${code}`, error);

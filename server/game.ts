@@ -922,7 +922,8 @@ export function tick(r: Room, now: number, dt: number) {
           Math.hypot(p.x - b.x, p.y - b.y) > 20
         )
           continue;
-        if (now < p.guard) {
+        const hitAt = now - travelTime + ((step + 1) * travelTime) / steps;
+        if (hitAt >= (p.guardStart ?? -Infinity) && hitAt < p.guard) {
           b.vx = -b.vx;
           b.vy = -b.vy;
           b.owner = p.id;

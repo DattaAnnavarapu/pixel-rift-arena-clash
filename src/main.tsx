@@ -1,3 +1,4 @@
+import { ActionLatch } from "./action-latch";
 import { emotes, teamMarkers } from "../server/social";
 import { pingClass } from "./feedback";
 import { TutorialRound } from "./ui/TutorialRound";
@@ -149,6 +150,7 @@ function TouchButton({
   label: string;
   remaining?: number;
 }) {
+  const activation = useRef(new ActionLatch());
   const down = (on: boolean) => {
     if (action === "fire") input.fire = on;
     else touch[action] = on;
@@ -157,7 +159,15 @@ function TouchButton({
     <button
       className={`touch-${action} ${remaining > 0 ? "cooling" : "available"}`}
       aria-label={`${label}${remaining > 0 ? `, ready in ${remaining} seconds` : ""}`}
+      onClick={(e) => {
+        if (activation.current.click(e.detail)) {
+          unlock();
+          haptic();
+          queueAction(action);
+        }
+      }}
       onPointerDown={(e) => {
+        activation.current.down();
         e.currentTarget.setPointerCapture(e.pointerId);
         unlock();
         haptic();
@@ -165,7 +175,10 @@ function TouchButton({
         down(true);
       }}
       onPointerUp={() => down(false)}
-      onPointerCancel={() => down(false)}
+      onPointerCancel={() => {
+        activation.current.cancel();
+        down(false);
+      }}
       onLostPointerCapture={() => down(false)}
     >
       <b>{label}</b>
@@ -422,6 +435,8 @@ function App() {
       resetInput();
     };
     const snapshot = (r: Snapshot) => {
+      if (!me || !r.players.some((p) => p.id === me)) return;
+      if (state?.code === r.code && r.now < state.now) return;
       lastSnapshot.current = Date.now();
       setSnapshotStale(false);
       if (state?.matchId !== r.matchId) setScoreboard(false);

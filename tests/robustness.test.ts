@@ -65,6 +65,24 @@ test("atomic reconnect takeover survives superseded disconnect; health reports m
     b.emit("input", { x: 1, y: 0, angle: 0, sequence: 1 });
     await new Promise((res) => setTimeout(res, 40));
     assert.equal(r.players[0].input.x, 1);
+    const { start } = await import("../server/game.js");
+    start(r, Date.now());
+    for (let sequence = 2; sequence < 10; sequence += 2) {
+      r.players[0].dash = 0;
+      b.emit("input", { x: 0, y: 0, angle: 0, sequence, dash: true });
+      b.emit("input", {
+        x: 0,
+        y: 0,
+        angle: 0,
+        sequence: sequence + 1,
+        dash: false,
+      });
+      await new Promise((res) => setTimeout(res, 50));
+      assert.ok(
+        r.players[0].dash > Date.now(),
+        "short tap must survive until a simulation tick",
+      );
+    }
     const c = await connect();
     assert.match(
       (await enter(c, { create: true, name: {} })).error,

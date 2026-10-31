@@ -1,7 +1,11 @@
+import { weapons } from "../server/combat";
 import { SnapshotBuffer } from "./netcode";
 export const snapshots = new SnapshotBuffer();
 import type { Snapshot, Input } from "../server/game";
 import type { SentInput } from "./prediction";
+export const shotRequests: { id: number; at: number }[] = [];
+let shotSerial = Date.now() * 1000,
+  nextShotAt = 0;
 export const sentInputs: SentInput[] = [];
 export let roundTrip = 0;
 export function setRoundTrip(ms: number) {
@@ -31,6 +35,9 @@ export const touch = {
 export function identify(id: string) {
   me = id;
   sentInputs.length = 0;
+  shotRequests.length = 0;
+  nextShotAt = 0;
+  shotSerial = Math.max(shotSerial, Date.now() * 1000);
 }
 export function receive(r: Snapshot | null) {
   state = r;
@@ -39,6 +46,7 @@ export function receive(r: Snapshot | null) {
   if (r) offset = r.now - Date.now() + roundTrip / 2;
 }
 export function resetInput() {
+  shotRequests.length = 0;
   for (const key of Object.keys(
     pendingActions,
   ) as (keyof typeof pendingActions)[])
@@ -65,6 +73,7 @@ export function queueAction(action: keyof typeof pendingActions) {
   if (!uiPaused) pendingActions[action] = true;
 }
 export function inputPacket(sequence: number, at = Date.now()) {
+  prepareShot(at);
   const packet = { ...input, fire: input.fire || touch.firing, sequence };
   for (const key of Object.keys(
     pendingActions,
@@ -82,4 +91,24 @@ export function inputPacket(sequence: number, at = Date.now()) {
     ...packet,
     history: sentInputs.slice(-3, -1).map((c) => ({ ...c.input })),
   };
+}
+
+/** Shared by frame rendering and packet dispatch, so short taps get fresh IDs too. */
+export function prepareShot(at = Date.now()) {
+  const p = state?.players.find((p) => p.id === me);
+  if (
+    uiPaused ||
+    !p ||
+    p.respawn ||
+    p.ammo <= 0 ||
+    Date.now() + offset < p.reloadAt ||
+    at < nextShotAt ||
+    !(input.fire || touch.firing || pendingActions.fire)
+  )
+    return;
+  const id = ++shotSerial;
+  input.shotId = id;
+  nextShotAt = at + weapons[p.weaponId].interval;
+  shotRequests.push({ id, at });
+  while (shotRequests.length > 8) shotRequests.shift();
 }

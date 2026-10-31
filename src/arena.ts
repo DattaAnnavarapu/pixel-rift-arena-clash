@@ -21,6 +21,8 @@ import {
   queueAction,
   sentInputs,
   snapshots,
+  prepareShot,
+  shotRequests,
 } from "./runtime";
 import {
   advancePosition,
@@ -50,12 +52,10 @@ export default class Arena extends Phaser.Scene {
     shotId: number;
     at: number;
   }[] = [];
-  nextShot = 0;
   predictedDashUntil = 0;
   predictedShieldUntil = 0;
   nextDashVisual = 0;
   nextShieldVisual = 0;
-  localShotAt = 0;
   localMuzzleUntil = 0;
   predictionSnapshot: typeof state = null;
   predictionTarget: PredictedPosition | undefined;
@@ -730,29 +730,23 @@ export default class Arena extends Phaser.Scene {
       g.fillRect(x + 3, y - 11, 3, 2);
       g.fillStyle(0xf6e1ac);
       g.fillRect(x - 2, y - 28, 5, 10);
-      if (
-        p.id === me &&
-        !uiPaused &&
-        (input.fire || touch.firing) &&
-        p.ammo > 0 &&
-        now >= p.reloadAt &&
-        Date.now() >= this.localShotAt
-      ) {
-        const shotId = ++this.nextShot;
-        input.shotId = shotId;
-        const weapon = weapons[p.weaponId];
-        for (const spread of weapon.spread)
-          this.cosmeticBolts.push({
-            x,
-            y,
-            vx: Math.cos(angle + spread) * weapon.speed,
-            vy: Math.sin(angle + spread) * weapon.speed,
-            life: weapon.life,
-            shotId,
-            at: Date.now(),
-          });
-        this.localShotAt = Date.now() + weapons[p.weaponId].interval;
-        this.localMuzzleUntil = Date.now() + 70;
+      if (p.id === me) {
+        prepareShot();
+        for (const request of shotRequests.splice(0)) {
+          if (Date.now() - request.at > 300) continue;
+          const weapon = weapons[p.weaponId];
+          for (const spread of weapon.spread)
+            this.cosmeticBolts.push({
+              x,
+              y,
+              vx: Math.cos(angle + spread) * weapon.speed,
+              vy: Math.sin(angle + spread) * weapon.speed,
+              life: weapon.life,
+              shotId: request.id,
+              at: request.at,
+            });
+          this.localMuzzleUntil = Date.now() + 70;
+        }
       }
       const localFlash =
         p.id === me && !uiPaused && Date.now() < this.localMuzzleUntil;
