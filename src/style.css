@@ -1,0 +1,560 @@
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap");
+:root {
+  font-family: "Space Grotesk", system-ui, sans-serif;
+  color: #edf0ff;
+  background: #0c1020;
+  font-synthesis: none;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: radial-gradient(ellipse at 75% 25%, #39245b55, transparent 55%);
+}
+main {
+  max-width: 1120px;
+  margin: auto;
+  padding: 28px 40px;
+}
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #2c3046;
+  padding-bottom: 24px;
+}
+.brand {
+  text-decoration: none;
+  color: #fff;
+  font-weight: 700;
+  letter-spacing: 3px;
+  font-size: 19px;
+}
+.brand b {
+  color: #bda1ff;
+  font-size: 28px;
+}
+.brand span {
+  display: block;
+  font-size: 9px;
+  letter-spacing: 5px;
+  margin-left: 33px;
+  color: #9a9db7;
+}
+.status {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font: 10px monospace;
+  color: #aeb5ce;
+}
+.status i {
+  height: 7px;
+  width: 7px;
+  background: #e96672;
+  box-shadow: 0 0 10px currentColor;
+}
+.status i.on {
+  background: #76ecc3;
+}
+.status button {
+  margin-left: 12px;
+}
+button {
+  font: 700 11px inherit;
+  letter-spacing: 1px;
+  background: #252b42;
+  color: #eee;
+  border: 1px solid #414862;
+  border-radius: 5px;
+  padding: 13px 18px;
+  cursor: pointer;
+}
+button:hover {
+  background: #3b4260;
+}
+button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.primary {
+  background: #bfa0ff;
+  color: #171229;
+  border-color: #c6adff;
+}
+.primary:hover {
+  background: #d5bfff;
+}
+input {
+  width: 100%;
+  background: #111627;
+  border: 1px solid #353c55;
+  border-radius: 5px;
+  color: #fff;
+  font: 16px inherit;
+  padding: 15px;
+  outline: none;
+}
+input:focus {
+  border-color: #bda1ff;
+}
+.landing {
+  position: relative;
+  padding: 72px 0 45px;
+  min-height: 560px;
+}
+.eyebrow {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: #bea2ff;
+}
+h1 {
+  font-size: clamp(44px, 6vw, 72px);
+  line-height: 1.08;
+  letter-spacing: -3px;
+  margin: 25px 0;
+}
+h1 em {
+  font-style: normal;
+  color: #c3a3ff;
+}
+.landing > p {
+  color: #aab1ca;
+  font-size: 17px;
+  line-height: 1.7;
+}
+.join {
+  position: absolute;
+  right: 0;
+  top: 85px;
+  width: 345px;
+  padding: 28px;
+  background: #171c30;
+  border: 1px solid #3a3c59;
+  border-radius: 12px;
+  box-shadow: 12px 12px 0 #080c19;
+}
+.join label {
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: #adb6d4;
+}
+.join input {
+  margin: 12px 0;
+}
+.join > .primary {
+  width: 100%;
+  padding: 17px;
+}
+.divider {
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-align: center;
+  color: #858da9;
+  margin: 23px 0 8px;
+}
+.joinrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.joinrow input {
+  min-width: 0;
+  font-family: monospace;
+  letter-spacing: 2px;
+}
+.joinrow button {
+  white-space: nowrap;
+}
+.features {
+  display: flex;
+  gap: 27px;
+  margin-top: 48px;
+  font: 11px monospace;
+  color: #9da7c6;
+}
+.features span:first-child {
+  color: #c2a6ff;
+}
+.error {
+  color: #ff8b9d;
+  font-size: 13px;
+}
+.rules {
+  border-top: 1px solid #30374c;
+  border-bottom: 1px solid #30374c;
+  margin-top: 25px;
+  padding: 20px 0;
+  color: #a5afc9;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.rules summary {
+  color: #dfe5fc;
+  letter-spacing: 2px;
+  font-size: 11px;
+  cursor: pointer;
+}
+.rules summary span {
+  float: right;
+}
+footer {
+  display: flex;
+  justify-content: space-between;
+  color: #68718f;
+  font: 10px monospace;
+  letter-spacing: 2px;
+  padding: 28px 0;
+}
+.matchbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 22px 0;
+}
+.matchbar small {
+  display: block;
+  font: 9px monospace;
+  color: #8993b0;
+}
+.matchbar strong {
+  letter-spacing: 4px;
+  margin-right: 20px;
+  font-size: 24px;
+}
+.score {
+  display: flex;
+  align-items: center;
+  gap: 25px;
+}
+.score b {
+  font-size: 32px;
+}
+.score span {
+  font: 13px monospace;
+}
+.red {
+  color: #ff7188;
+}
+.blue {
+  color: #68c7ff;
+}
+.arenaWrap {
+  position: relative;
+  border: 1px solid #424762;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #151b30;
+}
+.arena {
+  width: 100%;
+  aspect-ratio: 1.6;
+}
+canvas {
+  display: block;
+  image-rendering: pixelated;
+}
+.overlay {
+  position: absolute;
+  inset: 0;
+  background: #080c18bb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 15px;
+}
+.panel {
+  background: #151b2eee;
+  border: 1px solid #59617e;
+  border-radius: 10px;
+  padding: 28px;
+  width: 560px;
+  max-height: 100%;
+  overflow: auto;
+  text-align: center;
+}
+h2 {
+  font-size: 28px;
+  margin: 12px 0 20px;
+}
+.teams {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  text-align: left;
+}
+.teams > div {
+  border: 1px solid #35415e;
+  border-radius: 6px;
+  padding: 14px;
+}
+.teams h3 {
+  font-size: 12px;
+  letter-spacing: 2px;
+}
+.teams p {
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.teams small {
+  display: block;
+  font-size: 8px;
+  margin-top: 5px;
+  color: #a9b1cc;
+}
+.teams button {
+  width: 100%;
+  padding: 9px;
+}
+.actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin: 20px 0 13px;
+}
+.panel > small {
+  font-size: 11px;
+  color: #a5b0cb;
+}
+.abilities {
+  display: flex;
+  justify-content: space-between;
+  padding: 17px 0;
+  font: 11px monospace;
+  color: #afbddc;
+}
+kbd {
+  color: #687592;
+  margin-left: 9px;
+}
+.respawn,
+.connection {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #11192fe8;
+  border: 1px solid #d5b5ff;
+  padding: 14px;
+  font: 13px monospace;
+  white-space: nowrap;
+}
+.touch {
+  display: none;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 10px;
+  touch-action: none;
+}
+.stick {
+  height: 100px;
+  width: 100px;
+  background: #232c4599;
+  border: 1px solid #65708a;
+  border-radius: 50%;
+  position: relative;
+  touch-action: none;
+}
+.stick i {
+  position: absolute;
+  width: 38px;
+  height: 38px;
+  left: 30px;
+  top: 30px;
+  background: #b39be2aa;
+  border-radius: 50%;
+  transform: translate(var(--sx, 0), var(--sy, 0));
+}
+.stick span {
+  position: absolute;
+  bottom: 5px;
+  width: 100%;
+  text-align: center;
+  font: 8px monospace;
+  color: #8f9cbb;
+  pointer-events: none;
+}
+.touchright {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+}
+.touchright > div:last-child {
+  display: flex;
+  gap: 7px;
+}
+.touch button {
+  padding: 18px 12px;
+  touch-action: none;
+  user-select: none;
+}
+.touch button:first-child {
+  background: #754b98;
+}
+@media (pointer: coarse) {
+  .touch {
+    display: flex;
+  }
+}
+@media (max-width: 850px) {
+  main {
+    padding: 20px;
+  }
+  .landing {
+    padding-top: 45px;
+  }
+  .join {
+    position: relative;
+    top: auto;
+    width: 100%;
+    margin-top: 30px;
+    max-width: 480px;
+  }
+  .features {
+    gap: 14px;
+    font-size: 9px;
+  }
+  h1 {
+    font-size: 54px;
+  }
+  .landing > p {
+    font-size: 15px;
+  }
+  .panel {
+    padding: 16px;
+  }
+  h2 {
+    font-size: 20px;
+    margin: 10px 0;
+  }
+  .teams {
+    gap: 9px;
+  }
+  .teams > div {
+    padding: 8px;
+  }
+  .actions {
+    margin: 10px 0;
+  }
+  .status {
+    font-size: 8px;
+  }
+  .brand {
+    font-size: 15px;
+  }
+  .score {
+    gap: 12px;
+  }
+  .matchbar strong {
+    font-size: 18px;
+    margin-right: 8px;
+  }
+  .matchbar button {
+    font-size: 8px;
+    padding: 10px;
+  }
+  .score b {
+    font-size: 24px;
+  }
+  .abilities {
+    font-size: 9px;
+  }
+  .stick {
+    width: 82px;
+    height: 82px;
+  }
+  .stick i {
+    left: 21px;
+    top: 21px;
+  }
+  .touchright {
+    gap: 9px;
+  }
+  .touch button {
+    padding: 17px 9px;
+    font-size: 10px;
+  }
+  footer {
+    font-size: 8px;
+    letter-spacing: 1px;
+  }
+}
+@media (max-width: 550px) {
+  .arena {
+    aspect-ratio: 0.9;
+  }
+  .arena canvas {
+    max-width: 100%;
+  }
+  .overlay {
+    padding: 8px;
+  }
+  .panel {
+    padding: 12px;
+  }
+  .brand span {
+    font-size: 7px;
+  }
+  .status button {
+    padding: 8px;
+  }
+  .touchright > div:last-child {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .score span {
+    font-size: 10px;
+  }
+  .matchbar button {
+    display: block;
+    margin-top: 5px;
+  }
+  .abilities kbd {
+    display: none;
+  }
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  main {
+    padding: 8px 20px;
+  }
+  header,
+  footer,
+  .rules {
+    display: none;
+  }
+  .matchbar {
+    padding: 4px 0;
+  }
+  .arena {
+    height: 65vh;
+    aspect-ratio: auto;
+  }
+  .touch {
+    position: absolute;
+    bottom: 15px;
+    left: 25px;
+    right: 25px;
+    pointer-events: none;
+  }
+  .touch > * {
+    pointer-events: auto;
+  }
+  .abilities {
+    padding: 6px;
+  }
+  .panel {
+    max-width: 550px;
+  }
+  .teams p {
+    margin: 6px 0;
+  }
+  .teams h3 {
+    margin: 3px 0;
+  }
+  .panel .eyebrow,
+  .panel > small {
+    display: none;
+  }
+}
