@@ -106,9 +106,11 @@ function Stick({ aim = false }: { aim?: boolean }) {
 function TouchButton({
   action,
   label,
+  remaining = 0,
 }: {
   action: "fire" | "dash" | "shield" | "special";
   label: string;
+  remaining?: number;
 }) {
   const down = (on: boolean) => {
     if (action === "fire") input.fire = on;
@@ -116,7 +118,8 @@ function TouchButton({
   };
   return (
     <button
-      className={`touch-${action}`}
+      className={`touch-${action} ${remaining > 0 ? "cooling" : "available"}`}
+      aria-label={`${label}${remaining > 0 ? `, ready in ${remaining} seconds` : ""}`}
       onPointerDown={(e) => {
         e.currentTarget.setPointerCapture(e.pointerId);
         unlock();
@@ -127,7 +130,10 @@ function TouchButton({
       onPointerCancel={() => down(false)}
       onLostPointerCapture={() => down(false)}
     >
-      {label}
+      <b>{label}</b>
+      <small>
+        {remaining > 0 ? `${remaining}s` : action === "fire" ? "HOLD" : "READY"}
+      </small>
     </button>
   );
 }
@@ -460,7 +466,8 @@ function App() {
   useEffect(() => {
     if (!s || ["lobby", "finished"].includes(s.phase) || !mount.current) return;
     let disposed = false,
-      game: import("phaser").Game | undefined;
+      game: import("phaser").Game | undefined,
+      resizeObserver: ResizeObserver | undefined;
     setEngineLoading(true);
     setEngineError("");
     void Promise.all([import("phaser"), import("./arena")])
@@ -479,6 +486,8 @@ function App() {
           },
           scene: Arena,
         });
+        resizeObserver = new ResizeObserver(() => game?.scale.refresh());
+        resizeObserver.observe(mount.current!);
         setEngineLoading(false);
       })
       .catch(() => {
@@ -489,6 +498,7 @@ function App() {
       });
     return () => {
       disposed = true;
+      resizeObserver?.disconnect();
       game?.destroy(true);
     };
   }, [!!s, s?.phase === "lobby" || s?.phase === "finished"]);
@@ -605,6 +615,28 @@ function App() {
           settings={settings}
           onSettings={changeSettings}
           onClose={closePanel}
+          audioControls={
+            <div className="settings-audio">
+              <button
+                aria-pressed={sfx}
+                onClick={() => {
+                  setEffects(!sfx);
+                  setSfx(!sfx);
+                }}
+              >
+                SFX {sfx ? "ON" : "OFF"}
+              </button>
+              <button
+                aria-pressed={music}
+                onClick={() => {
+                  setMusic(!music);
+                  setMusicState(!music);
+                }}
+              >
+                MUSIC {music ? "ON" : "OFF"}
+              </button>
+            </div>
+          }
         />
       )}
       {!s ? (
@@ -750,6 +782,14 @@ function App() {
         </>
       ) : (
         <>
+          {!lobby && (
+            <nav className="mobile-match-bar" aria-label="Match controls">
+              <span>{rule.name}</span>
+              <button onClick={() => setScoreboard(!scoreboard)}>SCORES</button>
+              <button onClick={() => setPanel("settings")}>SETTINGS</button>
+              <button onClick={leave}>LEAVE</button>
+            </nav>
+          )}
           <div className="room-heading">
             <div>
               <span className="eyebrow">
@@ -1181,11 +1221,29 @@ function App() {
                   <Stick aim />
                   <div className="touch-buttons">
                     <TouchButton action="fire" label="FIRE" />
-                    <TouchButton action="dash" label="DASH" />
-                    <TouchButton action="shield" label="SHIELD" />
+                    <TouchButton
+                      action="dash"
+                      label="DASH"
+                      remaining={Math.max(
+                        0,
+                        Math.ceil(((self?.dash ?? 0) - time) / 1000),
+                      )}
+                    />
+                    <TouchButton
+                      action="shield"
+                      label="SHIELD"
+                      remaining={Math.max(
+                        0,
+                        Math.ceil(((self?.shield ?? 0) - time) / 1000),
+                      )}
+                    />
                     <TouchButton
                       action="special"
                       label={loadouts[self?.loadout ?? "nova"].name}
+                      remaining={Math.max(
+                        0,
+                        Math.ceil(((self?.special ?? 0) - time) / 1000),
+                      )}
                     />
                   </div>
                 </div>

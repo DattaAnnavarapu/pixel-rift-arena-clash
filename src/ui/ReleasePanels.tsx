@@ -6,11 +6,13 @@ export function ReleasePanel({
   settings,
   onSettings,
   onClose,
+  audioControls,
 }: {
   kind: "tutorial" | "settings";
   settings: Settings;
   onSettings: (s: Settings) => void;
   onClose: () => void;
+  audioControls?: React.ReactNode;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -122,6 +124,7 @@ export function ReleasePanel({
           </>
         ) : (
           <div className="settings-fields">
+            {audioControls}
             <label>
               MASTER VOLUME <b>{Math.round(settings.volume * 100)}%</b>
               <input
@@ -159,9 +162,8 @@ export function ReleasePanel({
             </label>
             <p className="quiet">
               An ongoing multiplayer match continues while this panel is open.
-              Settings and personal stats stay in this browser. SFX and music
-              have their own switches in the header. System reduced-motion
-              preferences are always respected.
+              Settings and personal stats stay in this browser. System
+              reduced-motion preferences are always respected.
             </p>
           </div>
         )}
