@@ -37,3 +37,12 @@ Baseline: 70 tests, 1.2.0-alpha.1, protocol 3. New wire fields remain optional. 
 2. Changes: optional private tutorial room/state, server-driven event progress/targets, training dummies, harmless reflection emitter, final Easy bot, no ending/forfeit/reward flow, first-run/replay/skip UI and touch-specific hints/highlights. New event fields are optional protocol-3 extensions.
 3. Tests: 88 tests plus build/release pass. Fake-context tests cover all director transitions and wrong actors, stuck/touch wording, room isolation/no stats/no ending, and actual socket code-join rejection/Quick Play isolation.
 4. Manual: full hardware completion, hint ergonomics and all kit choices remain unverified. Skip is deliberately permitted, yields no rewards, and is not achievement verification. The two-minute estimate is not certified.
+
+## Phase 7 — Feedback and social polish
+1. Findings: feedback lacked hit attribution, direction, team shapes and ping color/scoreboard readings.
+2. Changes: game.ts adds optional server-attributed direction/killer IDs; social.ts/index.ts validate and rate-limit four emotes. Arena/React draw hit/ammo/damage/team/ping/low-HP/killed-by feedback. audio.ts adds stereo panning, heartbeat and control cues under existing controls.
+3. Tests: 90 tests plus build/release pass; feedback helpers validate ID, team distinction, pan bounds and missing/high ping. Original gameplay and tutorial checks remain green.
+4. Manual: perceptual audio, reduced effects, controls and emote positioning need device checks. Killed-by card implements the requested alternative to a kill-cam; no history playback is added.
+
+## Phase 8 — Later / not implemented
+The four new maps, JSON level migration, cosmetic unlocks and four new modes remain deferred as marked LATER in the request. They would add independent gameplay and acceptance work; none is advertised as shipped.

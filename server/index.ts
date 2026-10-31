@@ -1,3 +1,4 @@
+import { isEmote } from "./social.js";
 import { setupTutorial, skipTutorialStep } from "./tutorial.js";
 import { isBotLevel } from "./bot-config.js";
 import { FaultLink } from "./network.js";
@@ -395,6 +396,12 @@ export async function createGameServer(
           start(room, Date.now());
       }
       emit(room);
+    });
+    on("emote", (a) => {
+      if (!room || !record(a) || !isEmote(a.id) || !limits.allow("emote", 1, 2))
+        return;
+      const p = room.players.find((p) => p.id === id);
+      if (p) p.emote = { id: a.id, until: Date.now() + 2500 };
     });
     on("tutorial", (a) => {
       if (

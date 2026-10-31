@@ -1,3 +1,5 @@
+import { emotes, teamMarkers } from "../server/social";
+import { pingClass } from "./feedback";
 import { TutorialRound } from "./ui/TutorialRound";
 import { classes, weapons, maxHealth } from "../server/combat";
 import { CombatSelection } from "./ui/CombatSelection";
@@ -321,6 +323,7 @@ function App() {
     [help, setHelp] = useState(false);
   const [engineLoading, setEngineLoading] = useState(false),
     [engineError, setEngineError] = useState("");
+  const [emoteOpen, setEmoteOpen] = useState(false);
   const [serverId, setServerId] = useState("");
   const [panel, setPanel] = useState<"tutorial" | "settings" | null>(null),
     [settings, setSettings] = useState(initialSettings),
@@ -423,6 +426,14 @@ function App() {
       setSnapshotStale(false);
       if (state?.matchId !== r.matchId) setScoreboard(false);
       if (state?.phase !== "finished" && r.phase === "finished") sound("win");
+      if (
+        r.mode === "control" &&
+        r.controlTeam !== state?.controlTeam &&
+        (r.controlTeam ?? -1) >= 0
+      )
+        setNotice(
+          `RIFT CONTROL TAKEN · ${r.controlTeam ? "▲ AZURE" : "■ CRIMSON"}`,
+        );
       updateMusic(r);
       try {
         const next = updateProgress(
@@ -906,7 +917,9 @@ function App() {
             <nav className="mobile-match-bar" aria-label="Match controls">
               <span>
                 {rule.name}
-                <small className="match-ping">
+                <small
+                  className={`match-ping ${pingClass(latency ?? undefined)}`}
+                >
                   {latency === null ? "…" : `${latency}ms`}
                 </small>
               </span>
@@ -1220,7 +1233,7 @@ function App() {
           ) : (
             <div className="battle-hud">
               <div className="score-team red">
-                <span>CRIMSON</span>
+                <span>■ CRIMSON</span>
                 <strong>{s.scores[0]}</strong>
               </div>
               <div className="score-clock">
@@ -1237,7 +1250,7 @@ function App() {
               </div>
               <div className="score-team blue">
                 <strong>{s.scores[1]}</strong>
-                <span>AZURE</span>
+                <span>▲ AZURE</span>
               </div>
             </div>
           )}
@@ -1269,6 +1282,32 @@ function App() {
                 >
                   SCORES · TAB
                 </button>
+                <button
+                  className="emote-toggle"
+                  onClick={() => setEmoteOpen(!emoteOpen)}
+                  aria-label="Emote wheel"
+                >
+                  ☺
+                </button>
+                {emoteOpen && (
+                  <div className="emote-wheel">
+                    <b>EMOTE</b>
+                    {Object.entries(emotes).map(([id, label]) => (
+                      <button
+                        key={id}
+                        onClick={() => {
+                          socket.emit("emote", { id });
+                          setEmoteOpen(false);
+                        }}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {self && self.hp > 0 && self.hp < maxHealth(self) * 0.25 && (
+                  <div className="low-health-vignette" />
+                )}
                 {scoreboard && (
                   <div className="scoreboard">
                     <h3>MATCH SCOREBOARD</h3>
@@ -1285,12 +1324,13 @@ function App() {
                         {s.players.map((p) => (
                           <tr key={p.id} className={p.team ? "blue" : "red"}>
                             <td>
-                              {p.name}
+                              {teamMarkers[p.team === 1 ? 1 : 0]} {p.name}
                               <small className="score-kit">
                                 {classes[p.classId].name} ·{" "}
                                 {weapons[p.weaponId].name}
                               </small>
                             </td>
+                            <td className={pingClass(p.rtt)}>{p.rtt ?? "—"}</td>
                             <td>{p.kills}</td>
                             <td>{p.deaths}</td>
                             <td>{p.collected}</td>
@@ -1313,6 +1353,13 @@ function App() {
             {self?.respawn && !lobby ? (
               <div className="respawn">
                 <span>RIFT RECALL</span>
+                <small>
+                  KILLED BY{" "}
+                  {s.feed
+                    ?.slice()
+                    .reverse()
+                    .find((f) => f.victimId === id)?.killer ?? "Arena"}
+                </small>
                 <small>
                   {(() => {
                     const ally = s.players

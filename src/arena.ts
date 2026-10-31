@@ -1,3 +1,5 @@
+import { emotes } from "../server/social";
+import { panFor } from "./feedback";
 import { classes, weapons, maxHealth } from "../server/combat";
 import { settings } from "./settings";
 import Phaser from "phaser";
@@ -241,6 +243,7 @@ export default class Arena extends Phaser.Scene {
       return;
     }
     if (e.kind === "shot") {
+      const local = state?.players.find((p) => p.id === me);
       if (
         Math.hypot(
           e.x - (state?.players.find((p) => p.id === me)?.x ?? 0),
@@ -253,8 +256,9 @@ export default class Arena extends Phaser.Scene {
             : e.weaponId === "shotgun"
               ? "shotgun"
               : "shot",
+          local ? Math.hypot(e.x - local.x, e.y - local.y) : 0,
+          local ? panFor(e.x, local.x) : 0,
         );
-      const local = state?.players.find((p) => p.id === me);
       if (
         local &&
         Math.hypot(local.x - e.x, local.y - e.y) < 24 &&
@@ -267,6 +271,7 @@ export default class Arena extends Phaser.Scene {
     sound(
       e.kind,
       listener ? Math.hypot(e.x - listener.x, e.y - listener.y) : 0,
+      listener ? panFor(e.x, listener.x) : 0,
     );
     if (
       e.kind === "ko" &&
@@ -848,6 +853,51 @@ export default class Arena extends Phaser.Scene {
         );
       }
       if (p.id === me) {
+        const cx = x + Math.cos(input.angle) * 80,
+          cy = y + Math.sin(input.angle) * 80;
+        const ammo = Math.max(
+          0,
+          Math.min(1, p.ammo / weapons[p.weaponId].magazine),
+        );
+        g.lineStyle(2, 0xe6ddff, 0.7);
+        g.beginPath();
+        g.arc(
+          cx,
+          cy,
+          11,
+          -Math.PI / 2,
+          -Math.PI / 2 + Math.PI * 2 * ammo,
+          false,
+        );
+        g.strokePath();
+        if (
+          (state.effects ?? []).some(
+            (e) => e.kind === "hit" && e.actor === me && now - e.at < 200,
+          )
+        ) {
+          g.lineStyle(2, 0xffffff);
+          g.lineBetween(cx - 5, cy - 5, cx + 5, cy + 5);
+          g.lineBetween(cx - 5, cy + 5, cx + 5, cy - 5);
+        }
+        for (const e of state.effects ?? [])
+          if (
+            e.kind === "hit" &&
+            e.target === me &&
+            e.direction !== undefined &&
+            now - e.at < 500
+          ) {
+            const dx = Math.cos(e.direction),
+              dy = Math.sin(e.direction);
+            g.fillStyle(0xffb185, 0.9);
+            g.fillTriangle(
+              x + dx * 44,
+              y + dy * 44,
+              x + dx * 32 - dy * 6,
+              y + dy * 32 + dx * 6,
+              x + dx * 32 + dy * 6,
+              y + dy * 32 - dx * 6,
+            );
+          }
         g.fillStyle(0xf1e7bb);
         g.fillTriangle(x - 5, y - 45, x + 5, y - 45, x, y - 39);
       }
@@ -869,7 +919,9 @@ export default class Arena extends Phaser.Scene {
         this.labels.set(p.id, label);
       }
       label.setPosition(x, y - 56);
-      label.setText(p.name);
+      label.setText(
+        `${p.team ? "▲" : "■"} ${p.name}${p.emote && p.emote.until > now ? ` · ${emotes[p.emote.id]}` : ""}`,
+      );
       label.setAlpha(p.inBush ? 0.5 : 1);
     }
     for (const e of state.effects ?? []) {

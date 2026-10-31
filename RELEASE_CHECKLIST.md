@@ -100,3 +100,8 @@ Manual acceptance before deployment/release:
 - [ ] New-browser first-run prompt and No thanks persistence; tutorial replay after completion.
 - [ ] Complete every step with desktop and physical touch controls, all specials/weapons, reflection misses, reload, all four pickups and fight/respawn.
 - [ ] Check hint placement, ring visibility, touch highlights, reduced motion, skip/replay/leave and no browser-stat changes. Full hardware tutorial completion is NOT yet certified.
+
+## Stabilization Phase 7 manual checks
+- [ ] Team shape distinction without color, scoreboard pings, ammo ring, confirmed hits, damage direction and killed-by card.
+- [ ] Headphone panning, heartbeat/control cue levels, volume/motion/particle preferences and hidden-tab silence.
+- [ ] Emote wheel on touch/desktop, flood limit and menu closure. No perceptual audio/device pass is claimed.

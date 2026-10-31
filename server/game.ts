@@ -1,3 +1,4 @@
+import type { EmoteId } from "./social.js";
 import { updateTutorial, type TutorialState } from "./tutorial.js";
 import type { BotLevel } from "./bot-config.js";
 import {
@@ -288,6 +289,7 @@ export type Player = {
   absorptionUntil: number;
   lastSequence?: number;
   rtt?: number;
+  emote?: { id: EmoteId; until: number };
   lastShotId?: number;
   shieldBackdate?: number;
   guardStart?: number;
@@ -335,6 +337,7 @@ export type Effect = {
   actor?: string;
   target?: string;
   pickupKind?: PickupKind;
+  direction?: number;
 };
 export type Room = {
   code: string;
@@ -385,6 +388,8 @@ export type Room = {
     id: number;
     killer: string;
     victim: string;
+    victimId?: string;
+    killerId?: string;
     team: number;
     at: number;
   }[];
@@ -603,6 +608,10 @@ function damage(
   Object.assign(effect(r, "hit", p, now, amount), {
     actor: owner,
     target: p.id,
+    direction: (() => {
+      const source = r.players.find((a) => a.id === owner);
+      return source ? Math.atan2(source.y - p.y, source.x - p.x) : undefined;
+    })(),
   });
   if (p.hp === 0) {
     p.respawn = now + 3000;
@@ -616,6 +625,8 @@ function damage(
       id: r.eventId!,
       killer: killer?.name ?? "Arena",
       victim: p.name,
+      victimId: p.id,
+      killerId: owner,
       team: killer?.team ?? -1,
       at: now,
     });

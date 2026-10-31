@@ -1,8 +1,31 @@
+import { me } from "./runtime";
+import { maxHealth } from "../server/combat";
 import { settings } from "./settings";
 import { modes, type Snapshot } from "../server/game";
 // Original synthesized chiptune; no downloads or copyrighted recordings.
-let urgent = false;
+let urgent = false,
+  soundPan = 0,
+  heartbeatAt = 0,
+  controlTeam = -1;
 export function updateMusic(s: Snapshot) {
+  const p = s.players.find((p) => p.id === me);
+  if (
+    p &&
+    !p.respawn &&
+    p.hp < maxHealth(p) * 0.25 &&
+    Date.now() > heartbeatAt
+  ) {
+    heartbeatAt = Date.now() + 1000;
+    sound("heartbeat");
+  }
+  if (
+    s.mode === "control" &&
+    s.controlTeam !== undefined &&
+    s.controlTeam !== controlTeam
+  ) {
+    controlTeam = s.controlTeam;
+    if (controlTeam >= 0) sound("control");
+  }
   const next =
     s.phase === "overtime" ||
     (["playing"].includes(s.phase) &&
@@ -35,12 +58,16 @@ function tone(
   g.gain.setValueAtTime(Math.max(0.0001, volume), at);
   g.gain.exponentialRampToValueAtTime(0.0001, at + duration);
   o.connect(g);
-  g.connect(master!);
+  const pan = context.createStereoPanner();
+  pan.pan.value = soundPan;
+  g.connect(pan);
+  pan.connect(master!);
   o.start(at);
   o.stop(at + duration);
   o.onended = () => {
     o.disconnect();
     g.disconnect();
+    pan.disconnect();
   };
 }
 export function setVolume(value: number) {
@@ -100,9 +127,16 @@ export function setMusic(on: boolean) {
   unlock();
   schedule();
 }
-export function sound(kind: string, distance = 0) {
+export function sound(kind: string, distance = 0, pan = 0) {
   if (!effectsEnabled || document.hidden) return;
+  soundPan = Number.isFinite(pan) ? Math.max(-1, Math.min(1, pan)) : 0;
   switch (kind) {
+    case "heartbeat":
+      tone(65, 0.12, 0.015, "sine", 45);
+      break;
+    case "control":
+      tone(660, 0.25, 0.02, "triangle", 990);
+      break;
     case "shot":
       tone(650, 0.07, 0.012, "square", 160);
       break;
@@ -166,6 +200,7 @@ export function sound(kind: string, distance = 0) {
     default:
       tone(540, 0.08, 0.02);
   }
+  soundPan = 0;
 }
 
 if (typeof document !== "undefined")
