@@ -1,64 +1,81 @@
 # Pixel Rift: Arena Clash
 
-2–4 player browser arena, Crimson vs Azure. React 19 + Phaser 3 + TypeScript client, Node.js + Express + Socket.IO authoritative server. No player accounts. One service serves the client and WebSocket endpoint on the same origin.
+A 2–4-player, no-login team arena game built with React 19, Phaser 3, TypeScript, Node.js, Express and Socket.IO. One process serves both the client and the authoritative game server.
 
-## Run
+## Run on Windows in VS Code
 
-Node.js 24 recommended.
+Install Node.js 24. Open the project folder containing `package.json`, then use the VS Code PowerShell terminal:
 
-```sh
+```powershell
 npm ci
 npm run dev
 ```
 
-Open http://localhost:3000 in separate browser tabs/devices. Set PORT if necessary. For LAN phone testing, use the host computer's LAN address and permit the server through the local firewall.
+Open **http://localhost:3000**. Keep the terminal running. On subsequent runs you only need `npm run dev`. The frontend and multiplayer backend start together; no second server or Vite command is needed. Use separate browser tabs as players. Friends on the same LAN can use the host computer's IP and port 3000 if the firewall permits it.
 
-Production:
+To test this feature branch:
 
-```sh
+```powershell
+git fetch origin
+git switch feature/game-enhancements
 npm ci
-npm run build
-NODE_ENV=production npm start
+npm run dev
 ```
 
-## Deploy to Render
+## What's new
 
-The included render.yaml configures one Node web service. Connect this source repository in Render, or create a Web Service from its Git repository. Build: `npm ci && npm run build`. Start: `npm start`. Environment: `NODE_ENV=production`. Health endpoint: `/health`. Render provides the PORT environment variable. Publish the returned HTTPS URL and verify /health before sharing it.
+- Three arenas with shared server/client collision geometry: **Astral Keep**, **Verdant Ruins**, **Ember Forge**.
+- Layered pixel knights with walking animation, directional weapons, textured terrain, floating crystals and ambient particles.
+- Projectile trails, hit flashes, damage numbers, KO bursts, dash trails, shield rings, healing and spawn effects. Camera shake respects reduced-motion preferences.
+- Redesigned main menu, map previews, host arena/mode controls, team/player cards, readiness, loadouts, results and invite feedback.
+- **Nova**: three 15-damage bolts with an eight-second cooldown. **Mend**: restore up to 30 HP with a 15-second cooldown, consumed only when healing. Choose one in the lobby; use **Q** or the touch special button.
+- Original synthesized chiptune music and distinct combat sounds. Independent SFX/music toggles persist locally. Audio starts after a user gesture; music defaults off and pauses while the tab is hidden.
+- Mobile MOVE/AIM sticks, four combat buttons, pointer-cancel recovery and landscape control layout.
+- Separate renderer/audio/runtime modules; reusable server factory for real Socket.IO integration tests.
 
-Do not split frontend/backend without adding explicit origin handling and a configurable socket URL. Run exactly ONE server instance: rooms live in memory. Restarts or deployments end rooms. Free hosting may sleep; test a cold start before submitting. Scaling to multiple instances requires shared simulation ownership and room routing, not just a Socket.IO adapter.
+## Modes
 
-## Rules
+| Mode          | Scoring                                                                                       | Target |
+| ------------- | --------------------------------------------------------------------------------------------- | ------ |
+| Crystal Clash | Crystals +1; knockouts +3                                                                     | 20     |
+| Knockout      | Knockouts +3; no crystals                                                                     | 15     |
+| Rift Control  | Occupy the center without an opponent; +1 per second. KOs clear the zone but award no points. | 40     |
 
-- First to 20 points, or highest score after three minutes.
-- Crystal +1; knockout +3. 100 HP; bolts deal 20 damage.
-- Tied timer: 30 seconds of sudden death, next score wins. If still tied, draw.
-- Respawn after three seconds; 1.5 seconds protection on spawn.
-- Dash: 180ms burst, five-second cooldown. Shield: 1.5 seconds, 12-second cooldown.
-- WASD/arrows move, mouse aim, hold click fire, Space dash, E shield.
-- Touch MOVE/AIM joysticks and FIRE/DASH/SHIELD buttons; landscape recommended.
-- Create or join using six-character code or invitation URL. Select teams, ready up, host starts. Two per team, 2-vs-1 allowed with warning.
+All matches last three minutes unless a team reaches the target first. A tie triggers 30 seconds of sudden death: the next score that creates a lead wins. Still tied after overtime is a draw. Players respawn after three seconds with 1.5 seconds of protection. No friendly fire.
 
-## Network model
+## Controls and lobby
 
-Clients send bounded inputs at about 30Hz. Server simulates at 30Hz and broadcasts snapshots at 15Hz. Rendering smooths authoritative positions. Server validates movement, walls, cooldowns, damage and scoring. Clients never supply health or scores. Reconnect tokens are random, per-tab sessionStorage values; nicknames persist in localStorage. Disconnected slots remain for 30 seconds. Host migrates immediately; empty rooms expire after ten minutes. Room codes are join conveniences, not private security boundaries.
+WASD/arrows move, mouse aims, hold click to fire (20 damage per bolt, 0.5s interval), Space dashes (five-second cooldown), E shields for 1.5 seconds (12-second cooldown), Q uses Nova/Mend. Touch devices have MOVE/AIM sticks plus FIRE/DASH/SHIELD/special buttons; landscape is recommended.
+
+Create a six-character room code or join an invitation URL. Up to two players per team; 2-vs-1 is allowed with a warning. The host chooses the arena and mode. Changing either clears everyone's ready status. Each player chooses a loadout and marks ready; the host starts when all connected players are ready and each team has someone. Results allow a new ready check and rematch. No accounts or installs.
+
+## Multiplayer architecture
+
+The server simulates at 30Hz and broadcasts snapshots at 15Hz. Clients send bounded movement/action inputs. The server calculates collisions, cooldowns, hits, healing, health, respawns, objectives and match results. Rendering smooths authoritative positions. Short-lived event IDs drive effects/audio without duplicate playback. Input older than 500ms is cleared.
+
+Reconnect tokens are random per-tab sessionStorage values; nicknames and audio preferences use localStorage. Disconnected slots remain for 30 seconds. Hosts migrate to connected players, and a returning player can become host when everyone else is offline. Empty rooms expire after ten minutes. Rooms and tokens live in memory: restarts/deployments end matches. Run a single instance. Multi-instance scaling requires shared room ownership/routing, not just a Socket.IO adapter. Room codes are join conveniences, not access-security boundaries.
+
+## Build and deploy
+
+```powershell
+npm run build
+$env:NODE_ENV = "production"
+npm start
+```
+
+`render.yaml` configures a single Node web service, `npm ci && npm run build`, `npm start`, `NODE_ENV=production`, and `/health`. Render supplies PORT. The checked-in source does not include generated `dist/`; deployment builds it. Reset NODE_ENV or open a new terminal before returning to development mode.
+
+The existing Render service tracks `main`. This feature branch is for review and is **not automatically deployed to production**. Merge only after approval. After deploying, verify `/health`, join from independent devices, and test a cold start. Free hosting may sleep. Do not split client/backend without adding a configurable socket origin and explicit CORS handling.
 
 ## Validation
 
-`npm test`: eight deterministic simulation tests; network test skipped unless TEST_URL is provided. `TEST_URL=https://your-host npm test` runs the integration test with actual WebSocket clients against a disposable deployment.
+```powershell
+npm test
+npm run build
+```
 
-Completed: TypeScript check and production bundle; simulation tests for walls, movement, damage, shields, scoring, respawn, sudden death, draw, dash, friendly fire, separate team spawns and rematch resets. Browser QA: four clients joined one lobby, fifth rejected as full, readiness gate, four-player match launch, refresh resume, host migration. Preview WebSocket connection established. Test clients use fictional nicknames.
+The suite includes 15 simulation tests plus one real network integration test. The network test starts a disposable in-process server and uses actual Socket.IO clients: four-player capacity, full-room rejection, readiness, host-only settings, shared map/mode, movement validation, room isolation, loadout preservation on reconnect and host migration. No skipped tests in the default run. Set TEST_URL only to test a disposable external deployment instead.
 
-Not yet verified: public deployment, public cold start, physical mobile devices, sustained cross-device combat under real network latency, full three-minute browser match/rematch, and automated end-to-end network suite. The local shell could not reach the managed preview's WebSocket endpoint; browser checks were used instead. Browser tabs share a machine and are not a substitute for testing friends' devices.
+Browser QA on this branch: redesigned menu/lobby; four players joining and readying; arena/mode and loadout selection; Ember Forge Knockout launch; Nova and shield cooldown response; refresh resume. Physical iOS/Android touch testing, perceptual audio quality and public-host latency remain manual checks before merging. A large Phaser bundle warning remains informational; the production build succeeds.
 
-## Submission checklist
-
-1. Deploy and open the public HTTPS URL without signing in.
-2. Join from two physical devices, then four; verify shared movement, damage and scores.
-3. Test touch controls on iOS/Android, portrait lobby and landscape combat.
-4. Test disconnect/reconnect within 30 seconds, host departure and room-full errors.
-5. Finish a match, rematch, and verify reset. Test cold start and use an always-on plan if needed.
-6. Submit the verified URL and a short gameplay recording through the contest's official submission flow. No contest entry has been submitted automatically.
-
-## Assets
-
-Arena, sprites and effects are drawn procedurally in Phaser; no external game assets are required. UI uses a system-font fallback if the optional Google Font cannot load.
+All game art and audio are generated procedurally in code. No downloaded asset packs or recordings are required.
