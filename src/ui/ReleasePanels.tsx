@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import React, { useEffect, useRef } from "react";
 import { loadouts } from "../../server/game";
 import type { Settings } from "../settings";
@@ -45,7 +46,7 @@ export function ReleasePanel({
       previous?.focus();
     };
   }, [onClose]);
-  return (
+  return createPortal(
     <div
       className="modal-backdrop"
       onClick={(e) => {
@@ -129,6 +130,79 @@ export function ReleasePanel({
           <div className="settings-fields">
             {audioControls}
             <label>
+              STICK SIZE{" "}
+              <input
+                type="range"
+                min="88"
+                max="132"
+                value={settings.stickSize ?? 104}
+                onChange={(e) =>
+                  onSettings({ ...settings, stickSize: Number(e.target.value) })
+                }
+              />
+            </label>
+            <label>
+              AIM SENSITIVITY (TRAVEL){" "}
+              <input
+                type="range"
+                min="0.5"
+                max="2"
+                step="0.1"
+                value={settings.aimSensitivity ?? 1}
+                onChange={(e) =>
+                  onSettings({
+                    ...settings,
+                    aimSensitivity: Number(e.target.value),
+                  })
+                }
+              />
+            </label>
+            <label className="check-setting">
+              <input
+                type="checkbox"
+                checked={settings.leftHanded ?? false}
+                onChange={(e) =>
+                  onSettings({ ...settings, leftHanded: e.target.checked })
+                }
+              />{" "}
+              LEFT-HANDED STICKS
+            </label>
+            <label className="check-setting">
+              <input
+                type="checkbox"
+                checked={settings.haptics ?? false}
+                onChange={(e) =>
+                  onSettings({ ...settings, haptics: e.target.checked })
+                }
+              />{" "}
+              HAPTICS (SUPPORTED DEVICES)
+            </label>
+            <label className="check-setting">
+              <input
+                type="checkbox"
+                checked={settings.shadows !== false}
+                onChange={(e) =>
+                  onSettings({ ...settings, shadows: e.target.checked })
+                }
+              />{" "}
+              PLAYER SHADOWS
+            </label>
+            <label>
+              QUALITY (FPS CAP APPLIES NEXT MATCH)
+              <select
+                value={settings.quality ?? "high"}
+                onChange={(e) =>
+                  onSettings({
+                    ...settings,
+                    quality: e.target.value as "high" | "low",
+                  })
+                }
+              >
+                <option value="high">High</option>
+                <option value="low">Low · fewer effects, 30 FPS</option>
+              </select>
+            </label>
+            <label>
               MASTER VOLUME <b>{Math.round(settings.volume * 100)}%</b>
               <input
                 type="range"
@@ -171,6 +245,7 @@ export function ReleasePanel({
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

@@ -167,3 +167,11 @@ export function sound(kind: string, distance = 0) {
       tone(540, 0.08, 0.02);
   }
 }
+
+if (typeof document !== "undefined")
+  document.addEventListener("visibilitychange", () => {
+    if (context)
+      void (document.hidden ? context.suspend() : context.resume()).catch(
+        () => {},
+      );
+  });

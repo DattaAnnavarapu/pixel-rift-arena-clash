@@ -13,3 +13,9 @@ Baseline: 70 tests, 1.2.0-alpha.1, protocol 3. New wire fields remain optional. 
 2. Changes: server/network.ts provides bounded dev/test-only one-way latency/jitter/volatile loss. Optional protocol-3 shot IDs, input history, per-player RTT and capped projectile catch-up; adaptive remote interpolation, immediate cosmetic bolts, local dash/shield visuals, measured ping queue preference, WebSocket-first/polling fallback and disabled-by-default region helper. No predicted object awards hits or rewards.
 3. Tests: 77 tests plus build/release checks pass. Four clients completed a full locally faulted Blitz match at injected 400ms RTT, 30ms jitter, 3% volatile loss: 6,084 snapshots, 0 disconnects, 0 rejected inputs, 0 score/phase desyncs, 103,281ms elapsed. This metric checks score/phase agreement, not visual positional accuracy. Two-/three-client and physical/international trials remain manual.
 4. Remaining limitation: backdated shield start is bounded to 150ms; it does NOT rewind already-applied damage/KO scores. Full historical rollback is not implemented. Client cosmetics may disappear after rejection/expiry. No production latency injection or region routing is enabled.
+
+## Phase 3 — Mobile
+1. Findings: no install metadata/fullscreen or ergonomic preferences; existing audio only skipped new tones while hidden.
+2. Changes: manifest/procedural icon/meta; persisted bounded optional settings, two layout directions, fullscreen gesture/fallback, render/audio suspension, scrollable portaled settings, next-match 30fps low quality.
+3. Tests: 79 tests, build and release gate pass; layout screenshot/geometry checks are recorded separately below.
+4. Manual: physical devices, haptics/orientation/browser bars and perceptual performance are NOT certified. Browser permissions/platform support can deny fullscreen/lock. Existing settings retain the same serialized shape until new preferences are chosen.

@@ -126,7 +126,7 @@ export default class Arena extends Phaser.Scene {
     });
   }
   drawMap() {
-    if (!state) return;
+    if (!state || document.hidden) return;
     const a = arenas[state.arena ?? "astral"],
       g = this.bg;
     g.clear();
@@ -281,7 +281,12 @@ export default class Arena extends Phaser.Scene {
     });
     for (
       let i = 0;
-      i < (settings.particles ? (e.kind === "ko" ? 20 : 8) : 0);
+      i <
+      (settings.particles && settings.quality !== "low"
+        ? e.kind === "ko"
+          ? 20
+          : 8
+        : 0);
       i++
     ) {
       const angle = (i * Math.PI * 2) / (e.kind === "ko" ? 20 : 8),
@@ -344,7 +349,7 @@ export default class Arena extends Phaser.Scene {
       this.cameras.main.shake(90, 0.003);
   }
   update(_time: number, delta: number) {
-    if (!state) return;
+    if (!state || document.hidden) return;
     this.reduced =
       matchMedia("(prefers-reduced-motion: reduce)").matches ||
       settings.reducedMotion;
@@ -656,8 +661,10 @@ export default class Arena extends Phaser.Scene {
           );
         }
       }
-      g.fillStyle(0x000000, 0.35);
-      g.fillEllipse(x, y + 20, 38, 12);
+      if (settings.shadows !== false && settings.quality !== "low") {
+        g.fillStyle(0x000000, 0.35);
+        g.fillEllipse(x, y + 20, 38, 12);
+      }
       // Layered pixel knight: cape, boots, armor, helmet and directional blaster.
       g.fillStyle(p.team ? 0x164478 : 0x7d263f);
       g.fillTriangle(x - 13, y - 4, x - 19 - step, y + 19, x + 13, y + 17);

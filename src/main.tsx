@@ -43,6 +43,7 @@ import {
   settings as initialSettings,
   saveSettings,
   type Settings,
+  haptic,
 } from "./settings";
 import { ReleasePanel } from "./ui/ReleasePanels";
 import { joystickVector } from "./joystick";
@@ -93,12 +94,13 @@ function Stick({ aim = false }: { aim?: boolean }) {
       vector = joystickVector(
         e.clientX - r.left - r.width / 2,
         e.clientY - r.top - r.height / 2,
-        r.width * 0.4,
+        (r.width * 0.4) / (aim ? (initialSettings.aimSensitivity ?? 1) : 1),
       ),
       { x, y } = vector;
     if (aim) {
       touch.aim = true;
       if (vector.active) input.angle = Math.atan2(y, x);
+      if (vector.active && !touch.firing) haptic(5);
       touch.firing = vector.active;
     } else {
       touch.move = true;
@@ -155,6 +157,7 @@ function TouchButton({
       onPointerDown={(e) => {
         e.currentTarget.setPointerCapture(e.pointerId);
         unlock();
+        haptic();
         queueAction(action);
         down(true);
       }}
@@ -515,7 +518,8 @@ function App() {
     if (!s || ["lobby", "finished"].includes(s.phase) || !mount.current) return;
     let disposed = false,
       game: import("phaser").Game | undefined,
-      resizeObserver: ResizeObserver | undefined;
+      resizeObserver: ResizeObserver | undefined,
+      visibility: (() => void) | undefined;
     setEngineLoading(true);
     setEngineError("");
     void Promise.all([import("phaser"), import("./arena")])
@@ -527,6 +531,7 @@ function App() {
           width: 960,
           height: 600,
           pixelArt: true,
+          fps: { limit: initialSettings.quality === "low" ? 30 : 0 },
           backgroundColor: "#151b30",
           scale: {
             mode: Phaser.Scale.FIT,
@@ -536,6 +541,12 @@ function App() {
         });
         resizeObserver = new ResizeObserver(() => game?.scale.refresh());
         resizeObserver.observe(mount.current!);
+        visibility = () => {
+          if (document.hidden) game?.loop.sleep();
+          else game?.loop.wake();
+        };
+        document.addEventListener("visibilitychange", visibility);
+        if (document.hidden) game.loop.sleep();
         setEngineLoading(false);
       })
       .catch(() => {
@@ -546,6 +557,8 @@ function App() {
       });
     return () => {
       disposed = true;
+      if (visibility)
+        document.removeEventListener("visibilitychange", visibility);
       resizeObserver?.disconnect();
       game?.destroy(true);
     };
@@ -599,7 +612,16 @@ function App() {
     }
   }
   return (
-    <main className={s && !lobby ? "in-match" : ""} onPointerDown={unlock}>
+    <main
+      className={s && !lobby ? "in-match" : ""}
+      data-left={settings.leftHanded === true}
+      style={
+        {
+          "--stick-size": `${settings.stickSize ?? 104}px`,
+        } as React.CSSProperties
+      }
+      onPointerDown={unlock}
+    >
       <header>
         <a href="/" className="brand">
           <b>✦</b>
@@ -840,6 +862,26 @@ function App() {
               </span>
               <button onClick={() => setScoreboard(!scoreboard)}>SCORES</button>
               <button onClick={() => setPanel("settings")}>SETTINGS</button>
+              <button
+                aria-label="Fullscreen"
+                onClick={async () => {
+                  try {
+                    if (!document.fullscreenElement)
+                      await document.documentElement.requestFullscreen();
+                    const orientation =
+                      screen.orientation as ScreenOrientation & {
+                        lock?: (value: string) => Promise<void>;
+                      };
+                    await orientation.lock?.("landscape");
+                  } catch {
+                    setNotice(
+                      "Fullscreen or orientation lock unavailable in this browser.",
+                    );
+                  }
+                }}
+              >
+                ⛶
+              </button>
               <button onClick={leave}>LEAVE</button>
             </nav>
           )}

@@ -83,3 +83,9 @@ Manual acceptance before deployment/release:
 ## Stabilization Phase 2 manual checks
 - [ ] Evaluate aiming/movement/projectile correction on physical devices at 350–450ms RTT; inspect shield late-packet behavior (no retroactive damage rollback).
 - [ ] Run the full-match latency script with 2, 3 and 4 players, plus polling-only. Compare per-player RTT and same-server matching. Region probing remains disabled.
+
+## Stabilization Phase 3 — real phone acceptance (NOT RUN)
+- [ ] iOS Safari and Android Chrome: 320×568, 390×844, 844×390 with browser bars/notch safe areas.
+- [ ] Both stick owners, simultaneous move/aim/fire, cancel/blur/app switching, left-handed mode and maximum stick size.
+- [ ] Fullscreen/orientation fallback, standalone launch, Settings scrolling, haptics support and saved preferences.
+- [ ] High/low quality FPS/audio/heat test; low-quality FPS cap starts on the next match.
