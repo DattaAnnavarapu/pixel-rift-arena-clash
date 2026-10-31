@@ -2211,3 +2211,10 @@ footer em {
   grid-column: 1;
   grid-row: 2;
 }
+.mobile-match-bar button {
+  min-width: 44px;
+}
+.tutorial-hint button,
+.tutorial-choices select {
+  min-height: 44px;
+}
