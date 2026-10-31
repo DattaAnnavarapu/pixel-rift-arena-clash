@@ -2,24 +2,70 @@
 
 A 2–4-player, no-login team arena game built with React 19, Phaser 3, TypeScript, Node.js, Express and Socket.IO. One process serves both the client and the authoritative game server.
 
-## Run on Windows in VS Code
+## Run the game from GitHub in VS Code (Windows)
 
-Install Node.js 24. Open the project folder containing `package.json`, then use the VS Code PowerShell terminal:
+**Requirements:** [Git](https://git-scm.com/downloads), [Node.js 24](https://nodejs.org/en/download) (includes npm), and [Visual Studio Code](https://code.visualstudio.com/).
+
+1. Open **VS Code → Terminal → New Terminal** (PowerShell).
+2. Clone the repository and enter its folder:
 
 ```powershell
-npm ci
-npm run dev
+git clone https://github.com/DattaAnnavarapu/pixel-rift-arena-clash.git
+cd pixel-rift-arena-clash
+code .
 ```
 
-Open **http://localhost:3000**. Keep the terminal running. On subsequent runs you only need `npm run dev`. The frontend and multiplayer backend start together; no second server or Vite command is needed. Use separate browser tabs as players. Friends on the same LAN can use the host computer's IP and port 3000 if the firewall permits it.
-
-To test this feature branch:
+3. **Switch to the improved version** (the changes are in the feature branch until the pull request is merged):
 
 ```powershell
 git fetch origin
 git switch feature/game-enhancements
+```
+
+4. Check that Node.js and npm work, then install dependencies:
+
+```powershell
+node -v
+npm -v
+npm ci
+```
+
+5. Start the game:
+
+```powershell
+npm run dev
+```
+
+6. Visit **http://localhost:3000** in your browser. Keep the VS Code terminal open while playing. **One command starts both the React/Phaser frontend and the Socket.IO multiplayer server**—you do not need a second terminal.
+
+To stop, press **Ctrl+C** in the terminal. On later runs, open the project folder and run `npm run dev` again; there is no need to clone or reinstall each time.
+
+### Play multiplayer locally
+
+Open the game in two or more browser tabs/windows. Create a room, copy the six-character code or invitation URL, and join from the other tabs. Each player picks a team/loadout and marks ready; the host starts once both teams have players and everyone is ready. For other devices on the **same Wi-Fi**, use `http://YOUR-PC-LAN-IP:3000` (find the IPv4 address with `ipconfig`); Windows Firewall must permit incoming connections. For internet play, use a deployed server instead—`localhost` is only your own computer.
+
+### Update your local checkout
+
+```powershell
+git switch feature/game-enhancements
+git pull origin feature/game-enhancements
 npm ci
 npm run dev
+```
+
+### Troubleshooting
+
+- **`git` / `node` / `npm` not recognized:** install Git or Node.js, then restart VS Code.
+- **`ENOENT ... package.json`:** open the cloned `pixel-rift-arena-clash` directory (not its parent). Run `dir package.json` to confirm.
+- **Port 3000 already in use:** stop the previous running server with Ctrl+C, then retry.
+- **Room won't connect:** confirm `npm run dev` is still running and visit the URL printed in the terminal. Other devices cannot connect using `localhost`.
+- **PowerShell blocks `npm.ps1`:** use `npm.cmd ci` and `npm.cmd run dev` instead.
+
+### Check your changes
+
+```powershell
+npm test
+npm run build
 ```
 
 ## What's new
