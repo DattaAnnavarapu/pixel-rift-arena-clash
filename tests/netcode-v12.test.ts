@@ -64,7 +64,7 @@ test("optional shot IDs dedupe held commands; catch-up obeys cap and cover", () 
   tick(r, 2500, 1 / 30);
   assert.equal(p.ammo, ammo);
   p.input.shotId = 2;
-  tick(r, 2600, 1 / 30);
+  tick(r, 3000, 1 / 30);
   assert.equal(p.ammo, ammo - 1);
   const b = new SnapshotBuffer();
   const a = snapshot(r, 1000);

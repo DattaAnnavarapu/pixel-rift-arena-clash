@@ -89,3 +89,6 @@ Manual acceptance before deployment/release:
 - [ ] Both stick owners, simultaneous move/aim/fire, cancel/blur/app switching, left-handed mode and maximum stick size.
 - [ ] Fullscreen/orientation fallback, standalone launch, Settings scrolling, haptics support and saved preferences.
 - [ ] High/low quality FPS/audio/heat test; low-quality FPS cap starts on the next match.
+
+## Stabilization Phase 4 manual checks
+- [ ] Evaluate the slower cadences and rifle one-shot protection with real players; compare all defender classes, range, shotgun pellet misses and shielding.

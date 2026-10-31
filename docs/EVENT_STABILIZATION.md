@@ -19,3 +19,9 @@ Baseline: 70 tests, 1.2.0-alpha.1, protocol 3. New wire fields remain optional. 
 2. Changes: manifest/procedural icon/meta; persisted bounded optional settings, two layout directions, fullscreen gesture/fallback, render/audio suspension, scrollable portaled settings, next-match 30fps low quality.
 3. Tests: 79 tests, build and release gate pass; layout screenshot/geometry checks are recorded separately below.
 4. Manual: physical devices, haptics/orientation/browser bars and perceptual performance are NOT certified. Browser permissions/platform support can deny fullscreen/lock. Existing settings retain the same serialized shape until new preferences are chosen.
+
+## Phase 4 — Balance
+1. Findings: boosted rifle one-hit KOs and sub-1.5s boosted reference TTKs. A strict target band requires cadence changes, not merely tests.
+2. Changes: 800/1500/1500ms Blaster/Shotgun/rifle cadence, 720px/s rifle at unchanged 704px range; rifle-only full-health one-shot protection leaves 1HP. Damage values/multipliers remain unchanged. README defines the reference scenario.
+3. Tests: 82 tests, build and release checks pass. The original 70 remain unchanged. The matrix covers all nine attacker kits against an unshielded 100HP target, with/without attacker damage pickup; reloads count. Shield expiry/refresh/respawn/rematch tests remain enabled. The new Phase 2 dedupe test now waits beyond the tuned cadence.
+4. Risks: this is a substantial firing-rate reduction and needs a feel/balance playtest. The band is NOT a guarantee across all defender classes/shields/ranges/pellet misses; those cases are explicitly outside the reference assertion.

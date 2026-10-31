@@ -14,9 +14,9 @@ This branch adds classes, weapons and four pickup types. It is a development pre
 
 | Weapon | Base damage | Fire interval | Magazine | Auto reload | Range |
 |---|---:|---:|---:|---:|---:|
-| Blaster | 20 | 0.4s | 10 | 1.2s | 378px |
-| Shotgun | 8 × 5 pellets | 0.9s | 4 | 1.6s | 231px |
-| Precision rifle | 50 | 1.0s | 4 | 1.8s | 704px |
+| Blaster | 20 | 0.8s | 10 | 1.2s | 378px |
+| Shotgun | 8 × 5 pellets | 1.5s | 4 | 1.6s | 231px |
+| Precision rifle | 50 | 1.5s | 4 | 1.8s | 704px |
 
 Class and damage-pickup multipliers apply before one rounding step to each projectile/Pulse hit. Class, weapon and special are selected independently in the lobby. The last shot starts automatic reload; held fire resumes after it. Specials use their own cooldowns and no ammunition. HP, ammo and buffs reset on respawn/rematch. These are starting balance values to tune in playtests.
 
@@ -220,3 +220,6 @@ Dash/shield predictions are visual only. Shield activation records a capped 150m
 
 ### Stabilization Phase 3 — mobile preferences
 Standalone manifest, optional fullscreen/orientation lock, bounded stick size, travel sensitivity, left-handed sticks, supported-device haptics and quality/shadow preferences persist locally. Low quality suppresses particles/shadows immediately and caps rendering at 30fps on the next match. Hidden tabs suspend the render loop and AudioContext; controls reset on blur/cancel. Settings render outside the touch-locked game container so long dialogs can scroll. Fullscreen, orientation lock and vibration depend on browser support; no offline play is promised.
+
+### Stabilization Phase 4 — balance gate
+Cadence is now 800ms Blaster, 1500ms Shotgun and 1500ms rifle. The TTK gate covers nine attacker class/weapon combinations against an unshielded stationary 100-HP target, with and without attacker damage boost; it includes reloads and assumes all shotgun pellets hit. Target 1.5–4s measures elapsed time after the first shot, not acquisition/travel. Defender shields, misses, other target classes and terrain require separate playtests. Projectile damage is unchanged to preserve existing combat regressions. A rifle hit cannot take a full-class-health target directly to zero: excess damage leaves 1 HP, so the next hit can finish. This preserves damage-pickup scaling without a hidden rifle-only multiplier. Rifle speed is 720px/s, lifetime 704/720s: range remains 704px. Balance feel is unverified on devices.

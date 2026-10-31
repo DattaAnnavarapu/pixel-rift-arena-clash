@@ -1430,9 +1430,9 @@ function App() {
               dashes (5s); E shields for 1.5s (12s). Q fires three 15-damage
               Nova bolts (8s), heals 30 HP with Mend (12s), or Blinks up to
               120px toward aim without crossing walls (10s). Shields reflect
-              bolts. Blaster fires 20-damage bolts every 0.4s; shotgun fires
-              five 8-damage pellets every 0.9s; rifle fires 50-damage bolts
-              every 1s. Class modifiers apply. Weapons reload automatically.
+              bolts. Blaster fires 20-damage bolts every 0.8s; shotgun fires
+              five 8-damage pellets every 1.5s; rifle fires 50-damage bolts
+              every 1.5s. Class modifiers apply. Weapons reload automatically.
               Pulse deals 20 damage in a 120px radius and pushes enemies (9s).
               Shields block Pulse. No friendly fire.
             </p>

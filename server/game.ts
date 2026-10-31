@@ -574,6 +574,7 @@ function damage(
   team: number,
   owner: string,
   now: number,
+  rifle = false,
 ) {
   if (now < p.guard || now < p.immune) return;
   if (now < p.absorptionUntil && p.absorption > 0) {
@@ -582,6 +583,7 @@ function damage(
     amount -= absorbed;
     effect(r, "absorb", p, now, absorbed);
   }
+  if (rifle && p.hp === maxHealth(p) && amount >= p.hp) amount = p.hp - 1;
   if (amount <= 0) return;
   p.hp = Math.max(0, p.hp - amount);
   effect(r, "hit", p, now, amount);
@@ -904,7 +906,15 @@ export function tick(r: Room, now: number, dt: number) {
           b.life -= elapsed;
           return b.life > 0;
         }
-        damage(r, p, b.damage ?? 20, b.team, b.owner, now);
+        damage(
+          r,
+          p,
+          b.damage ?? 20,
+          b.team,
+          b.owner,
+          now,
+          b.weaponId === "rifle",
+        );
         return false;
       }
     }

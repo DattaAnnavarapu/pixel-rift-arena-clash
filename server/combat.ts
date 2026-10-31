@@ -9,7 +9,7 @@ export const weapons = {
   blaster: {
     name: "Blaster",
     damage: 20,
-    interval: 400,
+    interval: 800,
     magazine: 10,
     reload: 1200,
     speed: 420,
@@ -19,7 +19,7 @@ export const weapons = {
   shotgun: {
     name: "Shotgun",
     damage: 8,
-    interval: 900,
+    interval: 1500,
     magazine: 4,
     reload: 1600,
     speed: 420,
@@ -29,11 +29,11 @@ export const weapons = {
   rifle: {
     name: "Precision rifle",
     damage: 50,
-    interval: 1000,
+    interval: 1500,
     magazine: 4,
     reload: 1800,
-    speed: 640,
-    life: 1.1,
+    speed: 720,
+    life: 704 / 720,
     spread: [0],
   },
 } as const;
