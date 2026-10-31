@@ -1928,3 +1928,91 @@ footer em {
     flex: 0 0 104px;
   }
 }
+
+.combat-selection {
+  margin: 18px 0;
+}
+.combat-selection fieldset {
+  border: 0;
+  padding: 0;
+  margin: 12px 0;
+  min-width: 0;
+}
+.combat-selection legend {
+  font: 10px monospace;
+  color: #c2b3e1;
+  padding: 0 0 8px;
+}
+.combat-selection fieldset > div {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+.combat-selection button {
+  text-align: left;
+  padding: 10px;
+  min-height: 58px;
+}
+.combat-selection button[aria-pressed="true"] {
+  background: #322c4d;
+  border-color: #bba1ef;
+}
+.combat-selection button b,
+.combat-selection button small {
+  display: block;
+}
+.combat-selection button small,
+.combat-selection p {
+  font: 10px/1.5 monospace;
+  color: #aabbd5;
+}
+.score-kit {
+  display: block;
+  font-size: 8px;
+  color: #adc0da;
+}
+.weapon-hud {
+  margin-top: 8px;
+  font: 10px monospace;
+  color: #c7c9ff;
+}
+.weapon-hud b,
+.weapon-hud small {
+  display: block;
+}
+.weapon-hud small {
+  margin-top: 3px;
+  font-size: 8px;
+  color: #afc1d8;
+}
+@media (max-width: 700px) {
+  .combat-selection fieldset > div {
+    grid-template-columns: 1fr;
+  }
+  .combat-selection button {
+    min-height: 48px;
+  }
+}
+@media (max-width: 700px),
+  (any-pointer: coarse) and (max-width: 1100px),
+  (orientation: landscape) and (max-height: 600px) and (max-width: 1100px) {
+  .in-match .health {
+    gap: 5px;
+    padding: 2px 6px;
+  }
+  .in-match .health > small {
+    display: none;
+  }
+  .in-match .health > i {
+    min-width: 20px;
+  }
+  .in-match .weapon-hud {
+    flex: 0 0 auto;
+    margin: 0 0 0 3px;
+    font-size: 8px;
+  }
+  .in-match .weapon-hud small {
+    font-size: 7px;
+    margin-top: 1px;
+  }
+}

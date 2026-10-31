@@ -106,6 +106,18 @@ export function sound(kind: string, distance = 0) {
     case "shot":
       tone(650, 0.07, 0.012, "square", 160);
       break;
+    case "shotgun":
+      tone(160, 0.15, 0.018, "sawtooth", 40);
+      break;
+    case "rifle":
+      tone(1000, 0.11, 0.018, "square", 100);
+      break;
+    case "reload":
+      tone(220, 0.08, 0.012 * Math.max(0, 1 - distance / 600), "triangle", 440);
+      break;
+    case "absorb":
+      tone(700, 0.09, 0.015 * Math.max(0, 1 - distance / 800), "sine", 300);
+      break;
     case "hit":
       tone(130, 0.12, 0.035 * Math.max(0, 1 - distance / 800), "sawtooth", 45);
       break;

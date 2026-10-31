@@ -1,6 +1,6 @@
-# Pixel Rift 1.1 release review
+# Pixel Rift release review
 
-Public-test fixes are on `fix/public-matchmaking-mobile`. They are not merged or published automatically.
+Current candidate: `feature/v1.2-phase1-combat`, version `1.2.0-alpha.1` (Phase 1 preview). It is not merged or published automatically. Earlier v1.1 test history remains below.
 
 ## Automated gate
 
@@ -20,7 +20,7 @@ Run Node.js 24, `npm ci`, then `npm run release:check`. This runs simulation/net
 
 1. Merge the candidate PR into `main` after review.
 2. Verify the existing Render service builds that exact merged commit; confirm its HTTP health-check path is `/health`.
-3. Wait for a Live deployment, then verify `/health` returns version `1.1.0` and protocol `2`.
+3. Wait for a Live deployment, then verify `/health` returns version `1.2.0-alpha.1` and protocol `3`.
 4. Open the public URL in a fresh browser and complete the two-player Quick Play check. A deploy status alone does not verify gameplay.
 5. Existing open tabs may need reload because this release adds a protocol version check. Deployments reset in-memory rooms; the shutdown event explains this to connected players.
 6. If the release fails, retain the failing logs and revert the source change through a reviewed Git change; remember that rooms cannot survive a process replacement.
@@ -62,3 +62,16 @@ The later public report supersedes the earlier passing round: cross-country Quic
 Branch `fix/input-latency-mobile-controls` adds immediate local weapon aim/flash, bounded unacknowledged-movement replay, up-to-60Hz input dispatch separate from the UI clock, writable-transport checks, disposable in-match snapshots, HTTP-polling-first connection/upgrade, and server-instance/RTT diagnostics. Mobile is a two-thumb MOVE / AIM + FIRE layout with larger sticks, a dead zone and three centered abilities; releasing aim stops firing, and blur/cancel resets controls.
 
 Required public retest: two players abroad use the exact same URL and mode; record server IDs, room codes, RTT and any connection error. Try a private invite as well as Quick Play. Run movement/aim/fire under the actual latency, then a full match. Test portrait, landscape, simultaneous two-thumb play, releases/cancels, switching apps and rotating on physical Android/iOS devices. Verify the right stick center preserves aim and stops firing. Local tests with 50–250ms prediction histories are not a real-network latency/load certification. Server placement and physical transit delay remain limits; multi-instance rooms need shared state before scaling.
+
+## v1.2 Phase 1 candidate
+
+Branch `feature/v1.2-phase1-combat`, version `1.2.0-alpha.1`, protocol 3. Scope and balance tables: docs/V1_2_PHASE1_PLAN.md and README. PR #7 input dispatch, movement replay and two-thumb controls remain the baseline.
+
+Automated gate: 70 tests plus TypeScript/Vite build and production smoke. New coverage exercises nine class/weapon combinations, magazines/reload, class-aware healing/resets, damage modifiers, absorption/expiry/refresh, fast bolts/cover/reflection, prediction and actual Socket.IO selection validation. Old mobile-input and polling regressions remain enabled.
+
+Manual acceptance before deployment/release:
+- Two humans select different class/weapon/special combinations, complete full rounds and reconnect; compare HP, ammo and damage feedback on both clients.
+- Confirm no movement/aim latency regression on real phones in portrait and landscape. Hold AIM + FIRE through reload; tap all three abilities while moving. Verify ammo/reload, HP and buffs stay readable after rotation.
+- Try all nine class/weapon combinations, including close-range shotgun and long-range rifle, with shields and damage pickups. Tune balance from playtests; automated correctness is not a fairness certification.
+- Check class silhouettes, weapon tones, shield absorption feedback and reduced-motion/particles settings. Assess supported-phone frame rates.
+- Deploy only after review/approval; stale protocol-2 tabs must reload. No international matchmaking claim or full v1.2 release approval follows from this phase.

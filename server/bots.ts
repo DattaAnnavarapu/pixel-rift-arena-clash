@@ -1,3 +1,10 @@
+import {
+  classes,
+  weapons,
+  maxHealth,
+  type ClassId,
+  type WeaponId,
+} from "./combat.js";
 import { blocked, inBush, usesCrystals, player, type Room } from "./game.js";
 export function manageBots(r: Room, actor: string, add: boolean) {
   if (actor !== r.host || !["lobby", "finished"].includes(r.phase))
@@ -17,6 +24,11 @@ export function manageBots(r: Room, actor: string, add: boolean) {
       `Riftbot ${r.players.filter((p) => p.bot).length + 1}`,
       t,
     );
+    const index = r.players.filter((p) => p.bot).length;
+    b.classId = (Object.keys(classes) as ClassId[])[index % 3];
+    b.weaponId = (Object.keys(weapons) as WeaponId[])[index % 3];
+    b.hp = maxHealth(b);
+    b.ammo = weapons[b.weaponId].magazine;
     b.bot = true;
     b.ready = true;
     r.players.push(b);
@@ -103,10 +115,13 @@ export function driveBots(r: Room, now: number) {
       x,
       y,
       angle: aim,
-      fire: distance < 380 && !!los,
-      dash: p.hp < 40,
+      fire:
+        distance < weapons[p.weaponId].speed * weapons[p.weaponId].life &&
+        !!los,
+      dash: p.hp < maxHealth(p) * 0.4,
       shield: distance < 260,
-      special: p.loadout === "mend" ? p.hp < 75 : distance < 330,
+      special:
+        p.loadout === "mend" ? p.hp < maxHealth(p) * 0.75 : distance < 330,
     };
     p.lastInput = now;
   }

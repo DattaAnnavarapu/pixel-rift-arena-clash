@@ -1,3 +1,4 @@
+import { moveSpeed } from "../server/combat";
 import {
   blocked,
   movementVelocity,
@@ -33,7 +34,7 @@ export function predictPosition(
   arena: ArenaId,
   broken: readonly number[] = [],
 ) {
-  const speed = now < p.burst ? 650 : now < (p.speedUntil ?? 0) ? 245 : 175;
+  const speed = moveSpeed(p, now);
   const velocity = movementVelocity(
     { ...p, ...pos },
     input,

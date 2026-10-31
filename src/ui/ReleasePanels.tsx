@@ -98,8 +98,10 @@ export function ReleasePanel({
                 <h3>Play the objective</h3>
                 <p>
                   Collect crystals, chase KOs, or control the center. Watch the
-                  mode rules above the arena. Pickups grant health, speed or
-                  double damage. Q uses your special.
+                  mode rules above the arena. Pickups grant health, a temporary
+                  absorbing shield, speed or double damage. Pick a class and
+                  weapon in the lobby; magazines reload automatically. Q uses
+                  your special.
                 </p>
               </article>
             </div>
