@@ -21,6 +21,8 @@ import {
   pauseInput,
   queueAction,
   inputPacket,
+  setRoundTrip,
+  uiPaused,
   type Snapshot,
 } from "./runtime";
 import {
@@ -41,19 +43,43 @@ import {
   type Settings,
 } from "./settings";
 import { ReleasePanel } from "./ui/ReleasePanels";
+import { joystickVector } from "./joystick";
 import "./style.css";
 const socket = io({
   autoConnect: false,
-  transports: ["websocket", "polling"],
+  transports: ["polling", "websocket"],
   tryAllTransports: true,
   reconnectionDelay: 500,
   reconnectionDelayMax: 4000,
 });
 function Stick({ aim = false }: { aim?: boolean }) {
   const activePointer = useRef<number | null>(null);
+  const stickRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const cancel = () => {
+      activePointer.current = null;
+      stickRef.current?.removeAttribute("style");
+      if (aim) touch.firing = false;
+      else {
+        touch.move = false;
+        input.x = input.y = 0;
+      }
+    };
+    const visibility = () => {
+      if (document.hidden) cancel();
+    };
+    window.addEventListener("blur", cancel);
+    document.addEventListener("visibilitychange", visibility);
+    return () => {
+      cancel();
+      window.removeEventListener("blur", cancel);
+      document.removeEventListener("visibilitychange", visibility);
+    };
+  }, [aim]);
   function release(e: React.PointerEvent) {
     if (activePointer.current !== e.pointerId) return;
     activePointer.current = null;
+    if (aim) touch.firing = false;
     if (!aim) {
       touch.move = false;
       input.x = input.y = 0;
@@ -62,32 +88,36 @@ function Stick({ aim = false }: { aim?: boolean }) {
   }
   function move(e: React.PointerEvent) {
     const r = e.currentTarget.getBoundingClientRect(),
-      x = (e.clientX - r.left - r.width / 2) / (r.width / 2),
-      y = (e.clientY - r.top - r.height / 2) / (r.height / 2),
-      n = Math.max(1, Math.hypot(x, y));
+      vector = joystickVector(
+        e.clientX - r.left - r.width / 2,
+        e.clientY - r.top - r.height / 2,
+        r.width * 0.4,
+      ),
+      { x, y } = vector;
     if (aim) {
       touch.aim = true;
-      input.angle = Math.atan2(y, x);
+      if (vector.active) input.angle = Math.atan2(y, x);
+      touch.firing = vector.active;
     } else {
       touch.move = true;
-      input.x = x / n;
-      input.y = y / n;
+      input.x = x;
+      input.y = y;
     }
-    e.currentTarget.setAttribute(
-      "style",
-      `--sx:${(x / n) * 24}px;--sy:${(y / n) * 24}px`,
-    );
+    e.currentTarget.setAttribute("style", `--sx:${x * 30}px;--sy:${y * 30}px`);
   }
   return (
     <div
-      className="stick"
-      aria-label={aim ? "Aim joystick" : "Movement joystick"}
+      ref={stickRef}
+      className={`stick ${aim ? "aim-stick" : "move-stick"}`}
+      role="group"
+      aria-label={aim ? "Aim and fire joystick" : "Movement joystick"}
+      onContextMenu={(e) => e.preventDefault()}
       onPointerDown={(e) => {
-        if (activePointer.current !== null) return;
+        if (uiPaused || activePointer.current !== null) return;
         activePointer.current = e.pointerId;
         e.preventDefault();
         unlock();
-        if (e.pointerType === "touch") touch.aim = true;
+        touch.aim = true;
         e.currentTarget.setPointerCapture(e.pointerId);
         move(e);
       }}
@@ -99,7 +129,7 @@ function Stick({ aim = false }: { aim?: boolean }) {
       onLostPointerCapture={release}
     >
       <i />
-      <span>{aim ? "AIM" : "MOVE"}</span>
+      <span>{aim ? "AIM + FIRE" : "MOVE"}</span>
     </div>
   );
 }
@@ -285,6 +315,7 @@ function App() {
     [help, setHelp] = useState(false);
   const [engineLoading, setEngineLoading] = useState(false),
     [engineError, setEngineError] = useState("");
+  const [serverId, setServerId] = useState("");
   const [panel, setPanel] = useState<"tutorial" | "settings" | null>(null),
     [settings, setSettings] = useState(initialSettings),
     [quickMode, setQuickMode] = useState<ModeId>("crystal"),
@@ -354,7 +385,8 @@ function App() {
       setOnline(true);
       if (sessionStorage.getItem("rift-token")) join(false, true);
     };
-    const hello = (r: { protocol: number }) => {
+    const hello = (r: { protocol: number; instance?: string }) => {
+      setServerId(r.instance ?? "unknown");
       if (r.protocol !== PROTOCOL_VERSION) {
         setMismatch(true);
         resetInput();
@@ -395,8 +427,12 @@ function App() {
     socket.on("disconnect", disconnected);
     socket.on("state", snapshot);
     socket.connect();
+    let lastUiUpdate = 0;
     const timer = setInterval(() => {
-      setTime(Date.now() + offset);
+      if (Date.now() - lastUiUpdate >= 100) {
+        setTime(Date.now() + offset);
+        lastUiUpdate = Date.now();
+      }
       const stale =
         !!me &&
         !!state &&
@@ -407,16 +443,21 @@ function App() {
       if (
         me &&
         socket.connected &&
+        socket.io.engine?.transport.writable &&
         state &&
         ["playing", "overtime"].includes(state.phase)
       )
         socket.volatile.emit("input", inputPacket(sequence.current++));
-    }, 33);
+    }, 16);
     const ping = setInterval(() => {
       const sent = Date.now();
       if (socket.connected)
         socket.timeout(3000).emit("ping-check", (err: any) => {
-          if (!err) setLatency(Date.now() - sent);
+          if (!err) {
+            const ms = Date.now() - sent;
+            setLatency(ms);
+            setRoundTrip(ms);
+          }
         });
     }, 2500);
     const blur = () => {
@@ -753,8 +794,8 @@ function App() {
                 </button>
               </div>
               <small className="quiet">
-                Quick Play matches by mode. Private codes work across phones and
-                laptops.
+                Quick Play matches on this server by mode. For friends abroad,
+                use the exact same invite link and mode.
               </small>
               <button
                 className="learn-button"
@@ -784,12 +825,24 @@ function App() {
         <>
           {!lobby && (
             <nav className="mobile-match-bar" aria-label="Match controls">
-              <span>{rule.name}</span>
+              <span>
+                {rule.name}
+                <small className="match-ping">
+                  {latency === null ? "…" : `${latency}ms`}
+                </small>
+              </span>
               <button onClick={() => setScoreboard(!scoreboard)}>SCORES</button>
               <button onClick={() => setPanel("settings")}>SETTINGS</button>
               <button onClick={leave}>LEAVE</button>
             </nav>
           )}
+          <p className="network-info" role="status">
+            SERVER {serverId || "connecting"} ·{" "}
+            {latency === null ? "Measuring ping…" : `${latency}ms round trip`} ·{" "}
+            {latency !== null && latency > 180
+              ? "High latency: hits and abilities wait for the server."
+              : "Same URL and mode required for Quick Play."}
+          </p>
           <div className="room-heading">
             <div>
               <span className="eyebrow">
@@ -1220,7 +1273,6 @@ function App() {
                 <div className="touchright">
                   <Stick aim />
                   <div className="touch-buttons">
-                    <TouchButton action="fire" label="FIRE" />
                     <TouchButton
                       action="dash"
                       label="DASH"
@@ -1310,9 +1362,11 @@ function App() {
           <div>
             <h3>04 / Take it anywhere</h3>
             <p>
-              On phones use MOVE and AIM sticks, then FIRE, DASH, SHIELD and
-              your special. Landscape recommended. A lost connection reserves
-              your slot for 30 seconds. Rooms reset when the server restarts.
+              On phones use MOVE on the left and drag AIM + FIRE on the right.
+              Release the right stick to stop firing; its center dead zone holds
+              aim without shooting. Tap DASH, SHIELD or your special between the
+              sticks. Landscape recommended. A lost connection reserves your
+              slot for 30 seconds. Rooms reset when the server restarts.
             </p>
           </div>
         </div>
