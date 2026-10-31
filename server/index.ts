@@ -26,6 +26,7 @@ import { pathToFileURL } from "node:url";
 export async function createGameServer(
   options: { port?: number; serveClient?: boolean } = {},
 ) {
+  const instance = randomBytes(4).toString("hex");
   let closing = false;
   const cleanupTimers = new Set<ReturnType<typeof setTimeout>>();
   let vite: Awaited<ReturnType<typeof import("vite").createServer>> | undefined;
@@ -47,6 +48,7 @@ export async function createGameServer(
   app.get("/health", (_, res) =>
     res.json({
       ok: !closing,
+      instance,
       version: RELEASE_VERSION,
       protocol: PROTOCOL_VERSION,
     }),
@@ -54,6 +56,7 @@ export async function createGameServer(
   app.get("/api/status", (_, res) =>
     res.json({
       version: RELEASE_VERSION,
+      instance,
       online: [...rooms.values()].reduce(
         (n, r) => n + r.players.filter((p) => p.online && !p.bot).length,
         0,
@@ -66,11 +69,19 @@ export async function createGameServer(
   function emit(r: Room) {
     for (const sid of io.sockets.adapter.rooms.get(r.code) ?? []) {
       const socket = io.sockets.sockets.get(sid);
-      socket?.emit("state", snapshot(r, Date.now(), socket.data.playerId));
+      if (!socket) continue;
+      const target = ["playing", "overtime"].includes(r.phase)
+        ? socket.volatile
+        : socket;
+      target.emit("state", snapshot(r, Date.now(), socket.data.playerId));
     }
   }
   io.on("connection", (s) => {
-    s.emit("hello", { version: RELEASE_VERSION, protocol: PROTOCOL_VERSION });
+    s.emit("hello", {
+      version: RELEASE_VERSION,
+      protocol: PROTOCOL_VERSION,
+      instance,
+    });
     s.on("ping-check", (ack) => {
       if (typeof ack === "function" && ++count <= 100) ack({ now: Date.now() });
     });

@@ -88,8 +88,9 @@ export function ReleasePanel({
                 <h3>Move. Aim. Survive.</h3>
                 <p>
                   WASD/arrows move; mouse aims; hold click fires. Space dashes,
-                  E shields and reflects bolts. Phones use the sticks and
-                  labeled action buttons.
+                  E shields and reflects bolts. Phones use MOVE and AIM + FIRE
+                  sticks. Drag the right stick to aim and shoot, release to
+                  stop; the three buttons trigger dash, shield and special.
                 </p>
               </article>
               <article>

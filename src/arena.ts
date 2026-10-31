@@ -2,6 +2,7 @@ import { settings } from "./settings";
 import Phaser from "phaser";
 import {
   arenas,
+  blocked,
   playableBounds,
   hazardActive,
   type Effect,
@@ -15,8 +16,14 @@ import {
   uiPaused,
   resetInput,
   queueAction,
+  sentInputs,
 } from "./runtime";
-import { predictPosition, boltPosition } from "./prediction";
+import {
+  advancePosition,
+  replayPosition,
+  boltPosition,
+  type PredictedPosition,
+} from "./prediction";
 import { sound } from "./audio";
 const teamColors = [0xff647f, 0x60d5ff];
 export default class Arena extends Phaser.Scene {
@@ -28,7 +35,11 @@ export default class Arena extends Phaser.Scene {
   roundEnd = 0;
   playerGraphics = new Map<string, Phaser.GameObjects.Graphics>();
   labels = new Map<string, Phaser.GameObjects.Text>();
-  positions = new Map<string, { x: number; y: number }>();
+  positions = new Map<string, PredictedPosition>();
+  localShotAt = 0;
+  localMuzzleUntil = 0;
+  predictionSnapshot: typeof state = null;
+  predictionTarget: PredictedPosition | undefined;
   reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
   rings: Phaser.GameObjects.Arc[] = [];
   particles: Phaser.GameObjects.Rectangle[] = [];
@@ -81,11 +92,9 @@ export default class Arena extends Phaser.Scene {
         if (!event.repeat) queueAction(action);
       });
     this.input.keyboard?.addCapture(["SPACE", "UP", "DOWN", "LEFT", "RIGHT"]);
-    this.input.on("pointermove", (p: Phaser.Input.Pointer) => {
-      if (!p.wasTouch) touch.aim = false;
-    });
     this.input.on("pointerdown", (p: Phaser.Input.Pointer) => {
       if (!p.wasTouch) {
+        touch.aim = false;
         this.game.canvas.focus({ preventScroll: true });
         input.fire = true;
         queueAction("fire");
@@ -322,6 +331,7 @@ export default class Arena extends Phaser.Scene {
     if (this.roundEnd !== state.end) {
       this.roundEnd = state.end;
       this.positions.clear();
+      this.predictionTarget = undefined;
       this.lastEvent = state.eventId ?? 0;
     }
     const now = Date.now() + offset,
@@ -517,18 +527,45 @@ export default class Arena extends Phaser.Scene {
       if (!pos || Math.hypot(pos.x - p.x, pos.y - p.y) > 150)
         pos = { x: p.x, y: p.y };
       const smoothing = 1 - Math.exp(-delta / 45);
-      if (p.id === me)
-        pos = predictPosition(
-          pos,
+      if (p.id === me) {
+        const arena = state.arena ?? "astral",
+          dt = Math.min(delta / 1000, 0.05);
+        if (this.predictionSnapshot !== state || !this.predictionTarget) {
+          this.predictionTarget = replayPosition(
+            p,
+            sentInputs,
+            Date.now(),
+            now,
+            arena,
+            state.brokenWalls,
+          );
+          this.predictionSnapshot = state;
+        }
+        advancePosition(
+          this.predictionTarget,
           p,
           input,
           now,
-          Math.min(delta / 1000, 0.05),
-          Math.max(0, (now - state.now) / 1000),
-          state.arena ?? "astral",
+          dt,
+          arena,
           state.brokenWalls,
         );
-      else {
+        advancePosition(pos, p, input, now, dt, arena, state.brokenWalls);
+        const error = Math.hypot(
+          pos.x - this.predictionTarget.x,
+          pos.y - this.predictionTarget.y,
+        );
+        if (error > 150) pos = { ...this.predictionTarget };
+        else {
+          const k = 1 - Math.exp(-dt / 0.12);
+          const x = pos.x + (this.predictionTarget.x - pos.x) * k;
+          const y = pos.y + (this.predictionTarget.y - pos.y) * k;
+          if (!blocked(x, y, 13, arena, state.brokenWalls)) {
+            pos.x = x;
+            pos.y = y;
+          }
+        }
+      } else {
         pos.x += (p.x - pos.x) * smoothing;
         pos.y += (p.y - pos.y) * smoothing;
       }
@@ -544,14 +581,15 @@ export default class Arena extends Phaser.Scene {
       const x = Math.round(pos.x),
         y = Math.round(pos.y),
         c = teamColors[p.team],
-        moving = p.moving,
+        angle = p.id === me ? input.angle : p.angle,
+        moving = p.id === me ? Math.hypot(input.x, input.y) > 0.05 : p.moving,
         step = moving && !this.reduced ? Math.round(Math.sin(now / 70) * 3) : 0;
       if (now < p.burst) {
         for (let j = 1; j < 4; j++) {
           g.fillStyle(c, 0.17 / j);
           g.fillRect(
-            x - Math.cos(p.angle) * j * 12 - 12,
-            y - Math.sin(p.angle) * j * 12 - 8,
+            x - Math.cos(angle) * j * 12 - 12,
+            y - Math.sin(angle) * j * 12 - 8,
             24,
             28,
           );
@@ -591,27 +629,34 @@ export default class Arena extends Phaser.Scene {
       g.fillRect(x + 3, y - 11, 3, 2);
       g.fillStyle(0xf6e1ac);
       g.fillRect(x - 2, y - 28, 5, 10);
+      if (
+        p.id === me &&
+        !uiPaused &&
+        (input.fire || touch.firing) &&
+        Date.now() >= this.localShotAt
+      ) {
+        this.localShotAt = Date.now() + 500;
+        this.localMuzzleUntil = Date.now() + 70;
+      }
+      const localFlash =
+        p.id === me && !uiPaused && Date.now() < this.localMuzzleUntil;
       const recoil =
         !this.reduced &&
-        (state.effects ?? []).some(
-          (e) =>
-            e.kind === "shot" &&
-            now - e.at < 100 &&
-            Math.hypot(e.x - p.x, e.y - p.y) < 30,
-        )
+        (localFlash ||
+          (state.effects ?? []).some(
+            (e) =>
+              e.kind === "shot" &&
+              now - e.at < 100 &&
+              Math.hypot(e.x - p.x, e.y - p.y) < 30,
+          ))
           ? 4
           : 0;
-      const gx = x + Math.cos(p.angle) * (20 - recoil),
-        gy = y + Math.sin(p.angle) * (20 - recoil);
+      const gx = x + Math.cos(angle) * (20 - recoil),
+        gy = y + Math.sin(angle) * (20 - recoil);
       g.lineStyle(7, 0x16233a);
       g.lineBetween(x, y, gx, gy);
       g.lineStyle(4, 0xc5d5e8);
-      g.lineBetween(
-        x + Math.cos(p.angle) * 12,
-        y + Math.sin(p.angle) * 12,
-        gx,
-        gy,
-      );
+      g.lineBetween(x + Math.cos(angle) * 12, y + Math.sin(angle) * 12, gx, gy);
       g.fillStyle(c);
       g.fillRect(gx - 3, gy - 3, 6, 6);
       if (p.guard > now || p.immune > now) {
@@ -644,11 +689,11 @@ export default class Arena extends Phaser.Scene {
           now - e.at < 85 &&
           Math.hypot(e.x - p.x, e.y - p.y) < 35,
       );
-      if (fired) {
+      if (fired || localFlash) {
         g.fillStyle(0xffefa9);
         g.fillTriangle(
-          gx + Math.cos(p.angle) * 12,
-          gy + Math.sin(p.angle) * 12,
+          gx + Math.cos(angle) * 12,
+          gy + Math.sin(angle) * 12,
           gx - 4,
           gy - 4,
           gx + 4,

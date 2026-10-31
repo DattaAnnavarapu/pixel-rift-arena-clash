@@ -86,7 +86,7 @@ npm run build
 - Redesigned main menu, map previews, host arena/mode controls, team/player cards, readiness, loadouts, results and invite feedback.
 - **Nova**: three 15-damage bolts with an eight-second cooldown. **Mend**: restore up to 30 HP with a 12-second cooldown, consumed only when healing. **Blink** teleports up to 120px toward aim, stopping at walls (10s cooldown). Choose one in the lobby; use **Q** or the touch special button.
 - Original synthesized chiptune music and distinct combat sounds. Independent SFX/music toggles persist locally. Audio starts after a user gesture; music defaults off and pauses while the tab is hidden.
-- Mobile MOVE/AIM sticks, four combat buttons, pointer-cancel recovery and landscape control layout.
+- Mobile MOVE and AIM + FIRE sticks, three ability buttons, pointer-cancel recovery and landscape control layout.
 - Local movement prediction with gentle server correction; capped bolt extrapolation, firing feedback, kill feed, Tab/touch scoreboard and teammate spectating on respawn.
 - Reflective shields and aim-directed stationary dashes; hosts can fill/remove explicitly labeled bots for solo practice. Bots count as active team members and keep their ready status through lobby setting changes.
 - Procedural lava/vents, portals, concealing bushes, destructible walls, mirrored flank crystals, pickups and slippery ice (see Levels below).
@@ -108,19 +108,19 @@ All modes except Blitz last three minutes unless a team reaches the target first
 
 ## Controls and lobby
 
-WASD/arrows move, mouse aims, hold click to fire (20 damage per bolt, 0.5s interval), Space dashes (five-second cooldown), E shields for 1.5 seconds (12-second cooldown), Q uses Nova/Mend/Blink/Pulse. Shields reflect bolts with ownership transferred to the defender; a reflected bolt can be reflected again. Touch devices have MOVE/AIM sticks plus FIRE/DASH/SHIELD/special buttons; landscape is recommended.
+WASD/arrows move, mouse aims, hold click to fire (20 damage per bolt, 0.5s interval), Space dashes (five-second cooldown), E shields for 1.5 seconds (12-second cooldown), Q uses Nova/Mend/Blink/Pulse. Shields reflect bolts with ownership transferred to the defender; a reflected bolt can be reflected again. Touch devices have MOVE and AIM + FIRE sticks plus DASH/SHIELD/special buttons; landscape is recommended.
 
 | Action     | Desktop                                              | Mobile                      |
 | ---------- | ---------------------------------------------------- | --------------------------- |
-| Move / aim | WASD or arrows / mouse                               | MOVE / AIM sticks           |
-| Fire       | Hold click                                           | FIRE                        |
+| Move / aim | WASD or arrows / mouse                               | MOVE / AIM + FIRE sticks           |
+| Fire       | Hold click                                           | Drag AIM + FIRE; release to stop |
 | Dash       | Space · 5s, 180ms burst; aim direction if stationary | DASH                        |
 | Shield     | E · 1.5s duration, 12s cooldown, reflects bolts      | SHIELD                      |
 | Special    | Q · Nova 8s, Mend 12s, Blink 10s, Pulse 9s           | NOVA / MEND / BLINK / PULSE |
 | Scoreboard | Hold Tab                                             | SCORES button               |
 | Practice   | Host: FILL WITH BOTS / REMOVE BOTS                   | Same lobby buttons          |
 
-Create a six-character room code or join an invitation URL. Up to two players per team; 2-vs-1 is allowed with a warning. The host chooses the arena and mode. Changing either clears everyone's ready status. Each player chooses a loadout and marks ready; the host starts when all connected players are ready and each team has someone. Results allow a new ready check and rematch. No accounts or installs. Quick Play automatically readies newcomers; changing a special makes you unready until you confirm again.
+Create a six-character room code or join an invitation URL. Up to two players per team; 2-vs-1 is allowed with a warning. The host chooses the arena and mode. Changing either clears everyone's ready status. Each player chooses a loadout and marks ready; the host starts when all connected players are ready and each team has someone. Results allow a new ready check and rematch. No accounts or installs. Quick Play automatically readies newcomers; changing a special preserves readiness and the countdown. UNREADY pauses the queue.
 
 ## Levels
 
@@ -135,7 +135,7 @@ Crystal Clash cycles through shared mirrored spawn points, including flanks, at 
 
 ## Multiplayer architecture
 
-The server simulates at 30Hz and broadcasts snapshots at 15Hz. Clients send bounded movement/action inputs. The server calculates collisions, cooldowns, hits, healing, health, respawns, objectives and match results. Remote rendering smooths authoritative positions. Local movement predicts with shared collisions and corrects toward server state; projectile extrapolation is capped at 100ms. Prediction never awards damage, scores or pickups. Short-lived event IDs drive effects/audio without duplicate playback. Input older than 500ms is cleared. Optional sequence numbers reject duplicate/out-of-order inputs. Protocol 2 is required on join; older tabs receive a reload message. The client uses volatile input packets, so reconnection never replays queued attacks.
+The server simulates at 30Hz and broadcasts snapshots at 15Hz. Clients send bounded movement/action inputs at up to 60Hz, independently of the 10Hz UI clock. The server calculates collisions, cooldowns, hits, healing, health, respawns, objectives and match results. Remote rendering smooths authoritative positions. Local movement replays inputs newer than the server sequence acknowledgement with shared collisions and gently reconciles; projectile extrapolation is capped at 100ms. Prediction never awards damage, scores or pickups. Short-lived event IDs drive effects/audio without duplicate playback. Input older than 500ms is cleared. Optional sequence numbers reject duplicate/out-of-order inputs. Protocol 2 is required on join; older tabs receive a reload message. The client uses volatile input packets, so reconnection never replays queued attacks.
 
 Reconnect tokens are random per-tab sessionStorage values; nicknames and audio preferences use localStorage. Disconnected slots remain for 30 seconds. Hosts migrate to connected players, and a returning player can become host when everyone else is offline. Rooms with no connected humans expire after ten minutes, even if bots remain. Rooms and tokens live in memory: restarts/deployments end matches. Run a single instance. Multi-instance scaling requires shared room ownership/routing, not just a Socket.IO adapter. Room codes are join conveniences, not access-security boundaries.
 
@@ -160,7 +160,7 @@ npm run build
 
 The suite includes regression tests for all new gameplay systems plus a real multi-client network integration test. The network test starts a disposable in-process server and uses actual Socket.IO clients: four-player capacity, full-room rejection, readiness, host-only settings, shared map/mode, movement validation, room isolation, loadout preservation on reconnect and host migration. No skipped tests in the default run. Set TEST_URL only to test a disposable external deployment instead.
 
-Browser QA includes the earlier four-client flow plus single-human Frost Bridge launch with three labeled bots, live combat, kill feed, scoreboard and teammate spectating. A production-only dependency install served /health and the built client successfully. Physical iOS/Android touch testing, perceptual audio quality and public-host latency remain manual checks before merging. Bots use local steering rather than full pathfinding, and prediction is lightweight reconciliation rather than input-history rollback. The Phaser chunk remains large, but it is separate from the initial menu bundle. The production build succeeds.
+Browser QA includes the earlier four-client flow plus single-human Frost Bridge launch with three labeled bots, live combat, kill feed, scoreboard and teammate spectating. A production-only dependency install served /health and the built client successfully. Physical iOS/Android touch testing, perceptual audio quality and public-host latency remain manual checks before merging. Bots use local steering rather than full pathfinding, and movement prediction replays unacknowledged inputs, capped to 300ms. The Phaser chunk remains large, but it is separate from the initial menu bundle. The production build succeeds.
 
 All game art and audio are generated procedurally in code. No downloaded asset packs or recordings are required.
 
@@ -168,4 +168,10 @@ Release validation: `npm run release:check` also checks `/health` version/protoc
 
 ### Mobile match layout
 
-Phone matches use a compact HUD and a separate touch-control area. Portrait places the controls below the arena; landscape places movement on the left and aim/actions on the right for a larger play view. Action buttons display server cooldowns. Scores, settings and leaving remain available during matches. Rotate to landscape for the clearest arena view on small phones.
+Phone matches use a compact HUD and a separate touch-control area. Portrait places the controls below the arena; landscape places movement on the left and aim/actions on the right for a larger play view. Ability buttons display server cooldowns. Drag the right stick to aim and fire with one thumb; release it to stop. A radial dead zone prevents drift and preserves the last aim angle at rest. Scores, settings and leaving remain available during matches. Rotate to landscape for the clearest arena view on small phones.
+
+### Input latency and cross-country diagnostics
+
+Local movement, weapon aim and a cosmetic muzzle flash react immediately. Damage, projectiles and abilities remain server-authoritative and still wait for network transit. High RTT cannot be eliminated by prediction. The match toolbar shows RTT; lobbies show a per-process server identifier. All players must use the exact same deployed URL and mode. There is no country filter in matchmaking. If public lobbies differ, compare server IDs, modes and whether an earlier lobby already started. Different server IDs indicate separate processes or a restart; rooms currently live in one process and are not shared across replicas.
+
+Connections start with HTTP polling and attempt WebSocket upgrade. Polling-only multiplayer is covered by a network regression. In-match snapshots and inputs avoid an unbounded stale backlog; pending action taps are not drained while the transport is unwritable. This is connection hardening, not verification that the reported cross-country failure is resolved. Record both server IDs, room codes, RTT, countries and visible errors for the next public retest.

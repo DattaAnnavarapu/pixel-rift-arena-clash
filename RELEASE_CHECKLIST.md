@@ -54,3 +54,11 @@ The follow-up branch `fix/mobile-match-layout` replaces the mobile match stack w
 Local QA: browser preview frames at 320×568, 390×844 and 844×390; check no control/arena overlap, no main-container overflow, rotation resizing, settings and scoreboard. This verifies CSS layout, not physical-phone ergonomics or safe-area hardware.
 
 Release remains blocked pending the redesigned build's real-phone playability check (portrait and landscape, browser bars visible, simultaneous move/aim/fire, all loadouts, rotation, settings, scoreboard, leaving and rematch) and a deployed two-human Quick Play test changing abilities while the countdown is active. Keep the earlier Wi-Fi/cellular passes recorded; repeat a short network smoke after deployment rather than treating them as untested.
+
+## Reopened public blockers: latency, aiming and international matching
+
+The later public report supersedes the earlier passing round: cross-country Quick Play, input/control lag and mobile joystick playability are release blockers again. Do not call v1.1 stable based on the earlier checks.
+
+Branch `fix/input-latency-mobile-controls` adds immediate local weapon aim/flash, bounded unacknowledged-movement replay, up-to-60Hz input dispatch separate from the UI clock, writable-transport checks, disposable in-match snapshots, HTTP-polling-first connection/upgrade, and server-instance/RTT diagnostics. Mobile is a two-thumb MOVE / AIM + FIRE layout with larger sticks, a dead zone and three centered abilities; releasing aim stops firing, and blur/cancel resets controls.
+
+Required public retest: two players abroad use the exact same URL and mode; record server IDs, room codes, RTT and any connection error. Try a private invite as well as Quick Play. Run movement/aim/fire under the actual latency, then a full match. Test portrait, landscape, simultaneous two-thumb play, releases/cancels, switching apps and rotating on physical Android/iOS devices. Verify the right stick center preserves aim and stops firing. Local tests with 50–250ms prediction histories are not a real-network latency/load certification. Server placement and physical transit delay remain limits; multi-instance rooms need shared state before scaling.

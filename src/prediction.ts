@@ -88,3 +88,72 @@ export function boltPosition(
   }
   return pos;
 }
+
+export type SentInput = { sequence: number; at: number; input: Input };
+export type PredictedPosition = {
+  x: number;
+  y: number;
+  vx?: number;
+  vy?: number;
+};
+export function advancePosition(
+  pos: PredictedPosition,
+  p: PlayerView,
+  input: Input,
+  now: number,
+  dt: number,
+  arena: ArenaId,
+  broken: readonly number[] = [],
+) {
+  const velocity = movementVelocity(
+    { ...p, ...pos },
+    input,
+    now,
+    Math.min(dt, 0.05),
+    arena,
+  );
+  pos.vx = velocity.x;
+  pos.vy = velocity.y;
+  return movePosition(
+    pos,
+    velocity.x,
+    velocity.y,
+    Math.hypot(velocity.x, velocity.y),
+    Math.min(dt, 0.05),
+    arena,
+    broken,
+  );
+}
+/** Replay only movement newer than the server acknowledgement. Never predict damage or abilities. */
+export function replayPosition(
+  p: PlayerView,
+  history: readonly SentInput[],
+  localNow: number,
+  serverNow: number,
+  arena: ArenaId,
+  broken: readonly number[] = [],
+) {
+  const pos: PredictedPosition = { x: p.x, y: p.y, vx: p.vx, vy: p.vy };
+  const pending = history.filter(
+    (c) => c.sequence > (p.lastSequence ?? -1) && c.at <= localNow,
+  );
+  const cutoff = localNow - 300;
+  for (let i = 0; i < pending.length; i++) {
+    let from = Math.max(cutoff, pending[i].at);
+    const end = Math.min(localNow, pending[i + 1]?.at ?? localNow);
+    while (from < end) {
+      const dt = Math.min(1 / 30, (end - from) / 1000);
+      advancePosition(
+        pos,
+        p,
+        pending[i].input,
+        serverNow - (localNow - from),
+        dt,
+        arena,
+        broken,
+      );
+      from += dt * 1000;
+    }
+  }
+  return pos;
+}
