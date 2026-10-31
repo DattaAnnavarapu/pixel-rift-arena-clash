@@ -1,3 +1,5 @@
+import { classes, weapons, maxHealth } from "../server/combat";
+import { CombatSelection } from "./ui/CombatSelection";
 import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { io } from "socket.io-client";
@@ -986,7 +988,7 @@ function App() {
                                 {p.id === s.host ? "♛" : ""}
                               </b>
                               <small>
-                                {`${loadouts[p.loadout].glyph} ${loadouts[p.loadout].name}`}
+                                {`${classes[p.classId].name} · ${weapons[p.weaponId].name} · ${loadouts[p.loadout].name}`}
                                 {s.phase === "finished"
                                   ? ` · ${p.kills} K / ${p.deaths} D`
                                   : ""}
@@ -1023,6 +1025,11 @@ function App() {
                     </div>
                   ))}
                 </div>
+                <CombatSelection
+                  classId={self?.classId ?? "assault"}
+                  weaponId={self?.weaponId ?? "blaster"}
+                  onSelect={configure}
+                />
                 <div className="loadout">
                   <label>
                     YOUR SPECIAL <kbd>Q</kbd>
@@ -1158,7 +1165,13 @@ function App() {
                       <tbody>
                         {s.players.map((p) => (
                           <tr key={p.id} className={p.team ? "blue" : "red"}>
-                            <td>{p.name}</td>
+                            <td>
+                              {p.name}
+                              <small className="score-kit">
+                                {classes[p.classId].name} ·{" "}
+                                {weapons[p.weaponId].name}
+                              </small>
+                            </td>
                             <td>{p.kills}</td>
                             <td>{p.deaths}</td>
                             <td>{p.collected}</td>
@@ -1208,6 +1221,9 @@ function App() {
                 {self && self.speedUntil! > time
                   ? `SPEED ${Math.ceil((self.speedUntil! - time) / 1000)}s · `
                   : ""}
+                {self && self.absorptionUntil > time && self.absorption > 0
+                  ? `SHIELD ${self.absorption} · ${Math.ceil((self.absorptionUntil - time) / 1000)}s · `
+                  : ""}
                 {self && self.damageUntil! > time
                   ? `DOUBLE DAMAGE ${Math.ceil((self.damageUntil! - time) / 1000)}s`
                   : ""}
@@ -1217,11 +1233,33 @@ function App() {
                   <small>VITALITY</small>
                   <b>
                     {self?.hp ?? 100}
-                    <small> / 100</small>
+                    <small> / {maxHealth(self ?? {})}</small>
                   </b>
                   <i>
-                    <span style={{ width: `${self?.hp ?? 100}%` }} />
+                    <span
+                      style={{
+                        width: `${((self?.hp ?? 100) / maxHealth(self ?? {})) * 100}%`,
+                      }}
+                    />
                   </i>
+                  <div className="weapon-hud" aria-label="Weapon status">
+                    <b>
+                      {self?.weaponId === "rifle"
+                        ? "RIFLE"
+                        : weapons[
+                            self?.weaponId ?? "blaster"
+                          ].name.toUpperCase()}{" "}
+                      {self?.ammo ?? 0}/
+                      {weapons[self?.weaponId ?? "blaster"].magazine}
+                    </b>
+                    <small>
+                      {self && self.reloadAt > time
+                        ? `RELOAD ${((self.reloadAt - time) / 1000).toFixed(1)}s`
+                        : self && self.shot > time
+                          ? `FIRE ${((self.shot - time) / 1000).toFixed(1)}s`
+                          : "READY · AUTO RELOAD"}
+                    </small>
+                  </div>
                 </div>
                 {[
                   { name: "DASH", key: "SPACE", at: self?.dash ?? 0, cd: 5000 },
@@ -1342,9 +1380,11 @@ function App() {
               dashes (5s); E shields for 1.5s (12s). Q fires three 15-damage
               Nova bolts (8s), heals 30 HP with Mend (12s), or Blinks up to
               120px toward aim without crossing walls (10s). Shields reflect
-              bolts. Basic bolts deal 20 damage. Pulse deals 20 damage in a
-              120px radius and pushes enemies (9s). Shields block Pulse. No
-              friendly fire.
+              bolts. Blaster fires 20-damage bolts every 0.4s; shotgun fires
+              five 8-damage pellets every 0.9s; rifle fires 50-damage bolts
+              every 1s. Class modifiers apply. Weapons reload automatically.
+              Pulse deals 20 damage in a 120px radius and pushes enemies (9s).
+              Shields block Pulse. No friendly fire.
             </p>
           </div>
           <div>

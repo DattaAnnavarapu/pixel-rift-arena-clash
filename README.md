@@ -2,6 +2,37 @@
 
 A 2–4-player, no-login team arena game built with React 19, Phaser 3, TypeScript, Node.js, Express and Socket.IO. One process serves both the client and the authoritative game server.
 
+## v1.2 Phase 1 preview — 1.2.0-alpha.1
+
+This branch adds classes, weapons and four pickup types. It is a development preview, not the full v1.2 release. The architecture review, implementation plan and acceptance checks are in [docs/V1_2_PHASE1_PLAN.md](docs/V1_2_PHASE1_PLAN.md).
+
+| Class | HP | Move speed | Outgoing damage |
+|---|---:|---:|---:|
+| Assault | 100 | 175 px/s | 100% |
+| Tank | 140 | 145 px/s | 85% |
+| Scout | 80 | 210 px/s | 90% |
+
+| Weapon | Base damage | Fire interval | Magazine | Auto reload | Range |
+|---|---:|---:|---:|---:|---:|
+| Blaster | 20 | 0.4s | 10 | 1.2s | 378px |
+| Shotgun | 8 × 5 pellets | 0.9s | 4 | 1.6s | 231px |
+| Precision rifle | 50 | 1.0s | 4 | 1.8s | 704px |
+
+Class and damage-pickup multipliers apply before one rounding step to each projectile/Pulse hit. Class, weapon and special are selected independently in the lobby. The last shot starts automatic reload; held fire resumes after it. Specials use their own cooldowns and no ammunition. HP, ammo and buffs reset on respawn/rematch. These are starting balance values to tune in playtests.
+
+| Pickup | Effect | Duration | Respawn |
+|---|---|---|---|
+| Health | +35 HP, capped at class maximum | Instant | 15s |
+| Shield | 35 absorption; excess damage reaches HP; no reflection | 5s or depleted | 15s |
+| Speed | Class move speed ×1.4 | 5s | 15s |
+| Damage | Outgoing damage ×2 | 5s | 15s |
+
+Repeated shield collection refreshes to 35 rather than stacking. A full active shield or full HP does not waste its pickup. Shield pickups sit at each arena's center; the E ability still reflects projectiles. Fast bolts use short collision steps through walls and players.
+
+The weapon HUD shows magazine, fire cooldown and auto-reload time; buff readouts show shield/speed/damage duration. Classes have subtle procedural silhouette changes, and weapons have distinct sounds/projectile accents. PR #7's input pump, dead zone, MOVE / AIM + FIRE and three ability buttons are preserved; reloading needs no extra touch button. Protocol is **3**; reload older tabs.
+
+Validation: 70 automated tests, TypeScript/production build and production smoke checks. Physical-phone responsiveness, full two-human rounds and balance are manual acceptance checks. International testing remains outside this phase and is not marked fixed. No profiles, rankings, new maps or persistent progression are included yet.
+
 ## Run the game from GitHub in VS Code (Windows)
 
 **Requirements:** [Git](https://git-scm.com/downloads), [Node.js 24](https://nodejs.org/en/download) (includes npm), and [Visual Studio Code](https://code.visualstudio.com/).
@@ -19,7 +50,7 @@ code .
 
 ```powershell
 git fetch origin
-git switch feature/release-ready
+git switch feature/v1.2-phase1-combat
 ```
 
 4. Check that Node.js and npm work, then install dependencies:
@@ -108,7 +139,7 @@ All modes except Blitz last three minutes unless a team reaches the target first
 
 ## Controls and lobby
 
-WASD/arrows move, mouse aims, hold click to fire (20 damage per bolt, 0.5s interval), Space dashes (five-second cooldown), E shields for 1.5 seconds (12-second cooldown), Q uses Nova/Mend/Blink/Pulse. Shields reflect bolts with ownership transferred to the defender; a reflected bolt can be reflected again. Touch devices have MOVE and AIM + FIRE sticks plus DASH/SHIELD/special buttons; landscape is recommended.
+WASD/arrows move, mouse aims, hold click to fire the selected weapon (see the Phase 1 table; automatic reload), Space dashes (five-second cooldown), E shields for 1.5 seconds (12-second cooldown), Q uses Nova/Mend/Blink/Pulse. Shields reflect bolts with ownership transferred to the defender; a reflected bolt can be reflected again. Touch devices have MOVE and AIM + FIRE sticks plus DASH/SHIELD/special buttons; landscape is recommended.
 
 | Action     | Desktop                                              | Mobile                      |
 | ---------- | ---------------------------------------------------- | --------------------------- |
@@ -135,7 +166,7 @@ Crystal Clash cycles through shared mirrored spawn points, including flanks, at 
 
 ## Multiplayer architecture
 
-The server simulates at 30Hz and broadcasts snapshots at 15Hz. Clients send bounded movement/action inputs at up to 60Hz, independently of the 10Hz UI clock. The server calculates collisions, cooldowns, hits, healing, health, respawns, objectives and match results. Remote rendering smooths authoritative positions. Local movement replays inputs newer than the server sequence acknowledgement with shared collisions and gently reconciles; projectile extrapolation is capped at 100ms. Prediction never awards damage, scores or pickups. Short-lived event IDs drive effects/audio without duplicate playback. Input older than 500ms is cleared. Optional sequence numbers reject duplicate/out-of-order inputs. Protocol 2 is required on join; older tabs receive a reload message. The client uses volatile input packets, so reconnection never replays queued attacks.
+The server simulates at 30Hz and broadcasts snapshots at 15Hz. Clients send bounded movement/action inputs at up to 60Hz, independently of the 10Hz UI clock. The server calculates collisions, cooldowns, hits, healing, health, respawns, objectives and match results. Remote rendering smooths authoritative positions. Local movement replays inputs newer than the server sequence acknowledgement with shared collisions and gently reconciles; projectile extrapolation is capped at 100ms. Prediction never awards damage, scores or pickups. Short-lived event IDs drive effects/audio without duplicate playback. Input older than 500ms is cleared. Optional sequence numbers reject duplicate/out-of-order inputs. Protocol 3 is required on join; older tabs receive a reload message. The client uses volatile input packets, so reconnection never replays queued attacks.
 
 Reconnect tokens are random per-tab sessionStorage values; nicknames and audio preferences use localStorage. Disconnected slots remain for 30 seconds. Hosts migrate to connected players, and a returning player can become host when everyone else is offline. Rooms with no connected humans expire after ten minutes, even if bots remain. Rooms and tokens live in memory: restarts/deployments end matches. Run a single instance. Multi-instance scaling requires shared room ownership/routing, not just a Socket.IO adapter. Room codes are join conveniences, not access-security boundaries.
 

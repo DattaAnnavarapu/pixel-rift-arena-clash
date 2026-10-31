@@ -1,3 +1,4 @@
+import { classes, weapons, maxHealth } from "../server/combat";
 import { settings } from "./settings";
 import Phaser from "phaser";
 import {
@@ -193,7 +194,22 @@ export default class Arena extends Phaser.Scene {
     g.strokeRect(2, 2, 956, 596);
   }
   flash(e: Effect) {
-    const c = e.kind === "mend" ? 0x8dffc4 : teamColors[e.team];
+    const c =
+      e.kind === "mend"
+        ? 0x8dffc4
+        : e.kind === "absorb"
+          ? 0x8de9ff
+          : teamColors[e.team];
+    if (e.kind === "reload") {
+      sound(
+        "reload",
+        Math.hypot(
+          e.x - (state?.players.find((p) => p.id === me)?.x ?? e.x),
+          e.y - (state?.players.find((p) => p.id === me)?.y ?? e.y),
+        ),
+      );
+      return;
+    }
     if (e.kind === "shot") {
       if (
         Math.hypot(
@@ -201,7 +217,13 @@ export default class Arena extends Phaser.Scene {
           e.y - (state?.players.find((p) => p.id === me)?.y ?? 0),
         ) < 400
       )
-        sound("shot");
+        sound(
+          e.weaponId === "rifle"
+            ? "rifle"
+            : e.weaponId === "shotgun"
+              ? "shotgun"
+              : "shot",
+        );
       const local = state?.players.find((p) => p.id === me);
       if (
         local &&
@@ -271,11 +293,13 @@ export default class Arena extends Phaser.Scene {
       const text =
         e.kind === "hit"
           ? `−${e.value}`
-          : e.kind === "mend"
-            ? `+${e.value}`
-            : e.kind === "ko"
-              ? "K.O."
-              : "+1";
+          : e.kind === "absorb"
+            ? `BLOCK ${e.value}`
+            : e.kind === "mend"
+              ? `+${e.value}`
+              : e.kind === "ko"
+                ? "K.O."
+                : "+1";
       const t = this.texts.find((o) => !o.active);
       if (!t) return;
       t.setText(text)
@@ -408,9 +432,11 @@ export default class Arena extends Phaser.Scene {
       const c =
         p.kind === "health"
           ? 0x8dffba
-          : p.kind === "speed"
-            ? 0x8ddeff
-            : 0xffd475;
+          : p.kind === "shield"
+            ? 0xc6adff
+            : p.kind === "speed"
+              ? 0x8ddeff
+              : 0xffd475;
       g.fillStyle(0x111c2f);
       g.fillRoundedRect(p.x - 13, p.y - 13, 26, 26, 3);
       g.lineStyle(1, c, 0.8);
@@ -419,6 +445,9 @@ export default class Arena extends Phaser.Scene {
       if (p.kind === "health") {
         g.fillRect(p.x - 8, p.y - 3, 16, 6);
         g.fillRect(p.x - 3, p.y - 8, 6, 16);
+      } else if (p.kind === "shield") {
+        g.lineStyle(3, c);
+        g.strokeTriangle(p.x - 8, p.y - 7, p.x + 8, p.y - 7, p.x, p.y + 9);
       } else if (p.kind === "speed") {
         g.fillTriangle(p.x + 6, p.y - 9, p.x - 6, p.y, p.x + 2, p.y + 1);
         g.fillTriangle(p.x - 5, p.y + 9, p.x + 7, p.y, p.x - 2, p.y - 1);
@@ -486,7 +515,7 @@ export default class Arena extends Phaser.Scene {
       };
       const angle = Math.atan2(b.vy, b.vx),
         c = teamColors[b.team];
-      g.lineStyle(7, c, 0.15);
+      g.lineStyle(b.weaponId === "rifle" ? 9 : 7, c, 0.15);
       g.lineBetween(
         b.x,
         b.y,
@@ -633,9 +662,11 @@ export default class Arena extends Phaser.Scene {
         p.id === me &&
         !uiPaused &&
         (input.fire || touch.firing) &&
+        p.ammo > 0 &&
+        now >= p.reloadAt &&
         Date.now() >= this.localShotAt
       ) {
-        this.localShotAt = Date.now() + 500;
+        this.localShotAt = Date.now() + weapons[p.weaponId].interval;
         this.localMuzzleUntil = Date.now() + 70;
       }
       const localFlash =
@@ -659,6 +690,20 @@ export default class Arena extends Phaser.Scene {
       g.lineBetween(x + Math.cos(angle) * 12, y + Math.sin(angle) * 12, gx, gy);
       g.fillStyle(c);
       g.fillRect(gx - 3, gy - 3, 6, 6);
+      if (p.absorption > 0 && p.absorptionUntil > now) {
+        g.lineStyle(2, 0x9af0ff, 0.65);
+        g.strokeCircle(x, y, 31);
+      }
+      // Class silhouettes remain readable without changing the shared hitbox.
+      if (p.classId === "tank") {
+        g.fillStyle(c);
+        g.fillRect(x - 18, y - 7, 7, 14);
+        g.fillRect(x + 11, y - 7, 7, 14);
+      }
+      if (p.classId === "scout") {
+        g.lineStyle(2, 0xffe3a5);
+        g.lineBetween(x - 8, y - 17, x + 8, y - 9);
+      }
       if (p.guard > now || p.immune > now) {
         g.fillStyle(p.guard > now ? 0xa9a3ff : 0xe8f5ff, 0.08);
         g.fillCircle(x, y, 28);
@@ -706,8 +751,8 @@ export default class Arena extends Phaser.Scene {
       }
       g.fillStyle(0x0a1220);
       g.fillRect(x - 20, y - 35, 40, 5);
-      g.fillStyle(p.hp < 35 ? 0xffc966 : c);
-      g.fillRect(x - 19, y - 34, (38 * p.hp) / 100, 3);
+      g.fillStyle(p.hp < maxHealth(p) * 0.35 ? 0xffc966 : c);
+      g.fillRect(x - 19, y - 34, (38 * p.hp) / maxHealth(p), 3);
       let label = this.labels.get(p.id);
       if (!label) {
         label = this.add

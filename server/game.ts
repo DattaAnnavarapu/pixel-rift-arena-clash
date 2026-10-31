@@ -1,3 +1,15 @@
+import {
+  weapons,
+  pickups,
+  PICKUP_RESPAWN,
+  maxHealth,
+  moveSpeed,
+  outgoingDamage,
+  type ClassId,
+  type WeaponId,
+  type PickupKind,
+} from "./combat.js";
+export { type PickupKind } from "./combat.js";
 import { driveBots } from "./bots.js";
 export const W = 960,
   H = 600;
@@ -16,7 +28,6 @@ export type Zone = {
   kind: "lava" | "vent" | "bush" | "ice";
   damage?: number;
 };
-export type PickupKind = "health" | "speed" | "damage";
 export type ArenaData = {
   name: string;
   tag: string;
@@ -172,6 +183,10 @@ arenas.grove.walls = arenas.grove.walls.map((w, i) => ({
   ...w,
   cracked: i < 4,
 }));
+for (const arena of Object.values(arenas)) {
+  arena.pickups ??= [];
+  arena.pickups.push({ kind: "shield", x: 480, y: 300 });
+}
 export type ArenaId = keyof typeof arenas;
 export const modes = {
   crystal: {
@@ -261,6 +276,12 @@ export type Player = {
   guard: number;
   special: number;
   loadout: LoadoutId;
+  classId: ClassId;
+  weaponId: WeaponId;
+  ammo: number;
+  reloadAt: number;
+  absorption: number;
+  absorptionUntil: number;
   lastSequence?: number;
   bot?: boolean;
   stormTick?: number;
@@ -293,12 +314,15 @@ export type Effect = {
     | "portal"
     | "pickup"
     | "break"
-    | "pulse";
+    | "pulse"
+    | "absorb"
+    | "reload";
   x: number;
   y: number;
   team: number;
   at: number;
   value?: number;
+  weaponId?: WeaponId;
 };
 export type Room = {
   code: string;
@@ -317,6 +341,7 @@ export type Room = {
     team: number;
     life: number;
     damage?: number;
+    weaponId?: WeaponId;
   }[];
   crystals: { x: number; y: number }[];
   nextCrystal: number;
@@ -364,6 +389,12 @@ export function player(id: string, name: string, team: number): Player {
     guard: 0,
     special: 0,
     loadout: "nova",
+    classId: "assault",
+    weaponId: "blaster",
+    ammo: weapons.blaster.magazine,
+    reloadAt: 0,
+    absorption: 0,
+    absorptionUntil: 0,
     kills: 0,
     deaths: 0,
     collected: 0,
@@ -431,7 +462,7 @@ export function configure(
 function effect(
   r: Room,
   kind: Effect["kind"],
-  p: { x: number; y: number; team: number },
+  p: { x: number; y: number; team: number; weaponId?: WeaponId },
   at: number,
   value?: number,
 ) {
@@ -445,6 +476,7 @@ function effect(
     team: p.team,
     at,
     value,
+    weaponId: kind === "shot" || kind === "reload" ? p.weaponId : undefined,
   });
 }
 export function start(r: Room, now: number) {
@@ -479,7 +511,11 @@ export function start(r: Room, now: number) {
         245 +
         (r.players.slice(0, i).filter((a) => a.team === p.team).length % 2) *
           110,
-      hp: 100,
+      hp: maxHealth(p),
+      ammo: weapons[p.weaponId].magazine,
+      reloadAt: 0,
+      absorption: 0,
+      absorptionUntil: 0,
       respawn: 0,
       immune: now + 1500,
       shot: 0,
@@ -530,6 +566,13 @@ function damage(
   now: number,
 ) {
   if (now < p.guard || now < p.immune) return;
+  if (now < p.absorptionUntil && p.absorption > 0) {
+    const absorbed = Math.min(amount, p.absorption);
+    p.absorption -= absorbed;
+    amount -= absorbed;
+    effect(r, "absorb", p, now, absorbed);
+  }
+  if (amount <= 0) return;
   p.hp = Math.max(0, p.hp - amount);
   effect(r, "hit", p, now, amount);
   if (p.hp === 0) {
@@ -580,7 +623,10 @@ export function tick(r: Room, now: number, dt: number) {
     if (p.respawn) {
       if (now >= p.respawn) {
         p.respawn = 0;
-        p.hp = 100;
+        p.hp = maxHealth(p);
+        p.ammo = weapons[p.weaponId].magazine;
+        p.reloadAt = 0;
+        p.absorption = p.absorptionUntil = 0;
         p.x = p.team ? 870 : 90;
         p.y =
           245 +
@@ -597,6 +643,12 @@ export function tick(r: Room, now: number, dt: number) {
       continue;
     }
     const a = p.input;
+    const weapon = weapons[p.weaponId];
+    if (p.reloadAt && now >= p.reloadAt) {
+      p.ammo = weapon.magazine;
+      p.reloadAt = 0;
+    }
+    if (now >= p.absorptionUntil) p.absorption = 0;
     if (p.lastInput && now - p.lastInput > 500) {
       a.x = a.y = 0;
       a.fire = a.dash = a.shield = a.special = false;
@@ -622,20 +674,39 @@ export function tick(r: Room, now: number, dt: number) {
       if (!blocked(x, p.y, 13, arena, r.brokenWalls)) p.x = x;
       if (!blocked(p.x, y, 13, arena, r.brokenWalls)) p.y = y;
     }
-    const fire = (angle: number, damage = 20) =>
+    const fire = (
+      angle: number,
+      damage: number,
+      speed = 420,
+      life = 0.9,
+      weaponId?: WeaponId,
+    ) =>
       r.bolts.push({
         x: p.x,
         y: p.y,
-        vx: Math.cos(angle) * 420,
-        vy: Math.sin(angle) * 420,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
         owner: p.id,
         team: p.team,
-        life: 0.9,
-        damage: now < (p.damageUntil ?? 0) ? damage * 2 : damage,
+        life,
+        damage: outgoingDamage(p, damage, now),
+        weaponId,
       });
-    if (a.fire && now >= p.shot) {
-      p.shot = now + 500;
-      fire(a.angle);
+    if (a.fire && now >= p.shot && !p.reloadAt && p.ammo > 0) {
+      p.shot = now + weapon.interval;
+      p.ammo--;
+      for (const spread of weapon.spread)
+        fire(
+          a.angle + spread,
+          weapon.damage,
+          weapon.speed,
+          weapon.life,
+          p.weaponId,
+        );
+      if (p.ammo === 0) {
+        p.reloadAt = now + weapon.reload;
+        effect(r, "reload", p, now);
+      }
       effect(r, "shot", p, now);
     }
     if (a.special && now >= p.special) {
@@ -664,14 +735,7 @@ export function tick(r: Room, now: number, dt: number) {
             ).some(Boolean)
           )
             continue;
-          damage(
-            r,
-            enemy,
-            now < (p.damageUntil ?? 0) ? 40 : 20,
-            p.team,
-            p.id,
-            now,
-          );
+          damage(r, enemy, outgoingDamage(p, 20, now), p.team, p.id, now);
           const angle = Math.atan2(enemy.y - p.y, enemy.x - p.x);
           if (!enemy.respawn)
             for (let i = 0; i < 18; i++) {
@@ -694,9 +758,9 @@ export function tick(r: Room, now: number, dt: number) {
         }
         effect(r, "blink", p, now);
       } else if (p.loadout === "mend") {
-        if (p.hp < 100) {
+        if (p.hp < maxHealth(p)) {
           p.special = now + 12000;
-          const amount = Math.min(30, 100 - p.hp);
+          const amount = Math.min(30, maxHealth(p) - p.hp);
           p.hp += amount;
           effect(r, "mend", p, now, amount);
         }
@@ -725,11 +789,24 @@ export function tick(r: Room, now: number, dt: number) {
         now >= pickup.availableAt &&
         Math.hypot(p.x - pickup.x, p.y - pickup.y) < 25
       ) {
-        if (pickup.kind === "health" && p.hp === 100) continue;
-        if (pickup.kind === "health") p.hp = Math.min(100, p.hp + 35);
-        if (pickup.kind === "speed") p.speedUntil = now + 5000;
-        if (pickup.kind === "damage") p.damageUntil = now + 5000;
-        pickup.availableAt = now + 15000;
+        if (pickup.kind === "health" && p.hp >= maxHealth(p)) continue;
+        if (
+          pickup.kind === "shield" &&
+          p.absorption >= pickups.shield.amount &&
+          now < p.absorptionUntil
+        )
+          continue;
+        if (pickup.kind === "health")
+          p.hp = Math.min(maxHealth(p), p.hp + pickups.health.amount);
+        if (pickup.kind === "speed")
+          p.speedUntil = now + pickups.speed.duration;
+        if (pickup.kind === "damage")
+          p.damageUntil = now + pickups.damage.duration;
+        if (pickup.kind === "shield") {
+          p.absorption = pickups.shield.amount;
+          p.absorptionUntil = now + pickups.shield.duration;
+        }
+        pickup.availableAt = now + PICKUP_RESPAWN;
         effect(r, "pickup", p, now);
       }
     }
@@ -755,54 +832,62 @@ export function tick(r: Room, now: number, dt: number) {
     });
   }
   r.bolts = r.bolts.filter((b) => {
-    b.x += b.vx * dt;
-    b.y += b.vy * dt;
-    b.life -= dt;
     if (b.life <= 0) return false;
-    const wallIndex = arenas[arena].walls.findIndex(
-      (w, i) =>
-        !r.brokenWalls?.includes(i) &&
-        b.x + 4 > w.x &&
-        b.x - 4 < w.x + w.w &&
-        b.y + 4 > w.y &&
-        b.y - 4 < w.y + w.h,
+    const travelTime = Math.min(dt, b.life);
+    const steps = Math.max(
+      1,
+      Math.ceil((Math.hypot(b.vx, b.vy) * travelTime) / 8),
     );
-    if (wallIndex >= 0) {
-      if (arenas[arena].walls[wallIndex].cracked) {
-        r.wallHits ??= {};
-        r.wallHits[wallIndex] = (r.wallHits[wallIndex] ?? 0) + 1;
-        if (r.wallHits[wallIndex] >= 3) {
-          r.brokenWalls ??= [];
-          r.brokenWalls.push(wallIndex);
-          effect(r, "break", { ...b, team: b.team }, now);
+    for (let step = 0; step < steps; step++) {
+      b.x += (b.vx * travelTime) / steps;
+      b.y += (b.vy * travelTime) / steps;
+      const wallIndex = arenas[arena].walls.findIndex(
+        (w, i) =>
+          !r.brokenWalls?.includes(i) &&
+          b.x + 4 > w.x &&
+          b.x - 4 < w.x + w.w &&
+          b.y + 4 > w.y &&
+          b.y - 4 < w.y + w.h,
+      );
+      if (wallIndex >= 0) {
+        if (arenas[arena].walls[wallIndex].cracked) {
+          r.wallHits ??= {};
+          r.wallHits[wallIndex] = (r.wallHits[wallIndex] ?? 0) + 1;
+          if (r.wallHits[wallIndex] >= 3) {
+            r.brokenWalls ??= [];
+            r.brokenWalls.push(wallIndex);
+            effect(r, "break", { ...b, team: b.team }, now);
+          }
         }
+        return false;
       }
-      return false;
-    }
-    if (blocked(b.x, b.y, 4, arena, r.brokenWalls)) return false;
-    for (const p of r.players) {
-      if (
-        p.team === b.team ||
-        p.respawn ||
-        !p.online ||
-        Math.hypot(p.x - b.x, p.y - b.y) > 20
-      )
-        continue;
-      if (now < p.guard) {
-        b.vx = -b.vx;
-        b.vy = -b.vy;
-        b.owner = p.id;
-        b.team = p.team;
-        const n = Math.hypot(b.vx, b.vy) || 1;
-        b.x = p.x + (b.vx / n) * 28;
-        b.y = p.y + (b.vy / n) * 28;
-        effect(r, "reflect", p, now);
-        return true;
+      if (blocked(b.x, b.y, 4, arena, r.brokenWalls)) return false;
+      for (const p of r.players) {
+        if (
+          p.team === b.team ||
+          p.respawn ||
+          !p.online ||
+          Math.hypot(p.x - b.x, p.y - b.y) > 20
+        )
+          continue;
+        if (now < p.guard) {
+          b.vx = -b.vx;
+          b.vy = -b.vy;
+          b.owner = p.id;
+          b.team = p.team;
+          const n = Math.hypot(b.vx, b.vy) || 1;
+          b.x = p.x + (b.vx / n) * 28;
+          b.y = p.y + (b.vy / n) * 28;
+          effect(r, "reflect", p, now);
+          b.life -= dt;
+          return b.life > 0;
+        }
+        damage(r, p, b.damage ?? 20, b.team, b.owner, now);
+        return false;
       }
-      damage(r, p, b.damage ?? 20, b.team, b.owner, now);
-      return false;
     }
-    return true;
+    b.life -= dt;
+    return b.life > 0;
   });
   const bounds = playableBounds(r, now);
   if (r.phase === "overtime")
@@ -955,6 +1040,7 @@ export function movementVelocity(
     dashX?: number;
     dashY?: number;
     speedUntil?: number;
+    classId?: ClassId;
     vx?: number;
     vy?: number;
   },
@@ -964,7 +1050,7 @@ export function movementVelocity(
   arena: ArenaId,
 ) {
   const n = Math.max(1, Math.hypot(a.x, a.y)),
-    speed = now < p.burst ? 650 : now < (p.speedUntil ?? 0) ? 245 : 175;
+    speed = moveSpeed(p, now);
   let x = (now < p.burst ? (p.dashX ?? a.x / n) : a.x / n) * speed,
     y = (now < p.burst ? (p.dashY ?? a.y / n) : a.y / n) * speed;
   if (

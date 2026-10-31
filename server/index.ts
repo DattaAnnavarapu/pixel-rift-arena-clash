@@ -1,3 +1,4 @@
+import { isClass, isWeapon, maxHealth, weapons } from "./combat.js";
 import {
   findPublicRoom,
   updateMatchmaking,
@@ -222,6 +223,17 @@ export async function createGameServer(
       ) {
         p.loadout = a.loadout;
         // Public entrants are already queued; selecting a kit must not unqueue them.
+        if (!room.publicMatch) p.ready = false;
+      }
+      if (isClass(a?.classId)) {
+        p.classId = a.classId;
+        p.hp = maxHealth(p);
+        if (!room.publicMatch) p.ready = false;
+      }
+      if (isWeapon(a?.weaponId)) {
+        p.weaponId = a.weaponId;
+        p.ammo = weapons[p.weaponId].magazine;
+        p.reloadAt = 0;
         if (!room.publicMatch) p.ready = false;
       }
       if (!room.publicMatch && (a?.team === 0 || a?.team === 1)) {
