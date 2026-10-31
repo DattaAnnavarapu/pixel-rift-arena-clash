@@ -210,7 +210,8 @@ export async function createGameServer(
         Object.hasOwn(loadouts, a.loadout)
       ) {
         p.loadout = a.loadout;
-        p.ready = false;
+        // Public entrants are already queued; selecting a kit must not unqueue them.
+        if (!room.publicMatch) p.ready = false;
       }
       if (!room.publicMatch && (a?.team === 0 || a?.team === 1)) {
         if (

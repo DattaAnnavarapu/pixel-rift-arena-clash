@@ -1,6 +1,6 @@
 # Pixel Rift 1.1 release review
 
-This candidate is on `feature/release-ready`. It is not merged or published automatically.
+Public-test fixes are on `fix/public-matchmaking-mobile`. They are not merged or published automatically.
 
 ## Automated gate
 
@@ -30,3 +30,17 @@ Run Node.js 24, `npm ci`, then `npm run release:check`. This runs simulation/net
 Quick Play matches by mode on this server; it has no rank, region or skill rating. It needs two humans; use private rooms with bots for solo practice. Public lobbies have fixed teams/rules while private lobbies retain host customization. Personal stats/settings live in the visitor's browser, and are not verified rankings. This release keeps single-instance, in-memory rooms. Sleeping hosts can cause cold starts; verify the chosen hosting plan against the expected traffic before announcing the game.
 
 No real-device certification, load-test capacity claim, audio listening approval or production deployment is implied by the local automated checks.
+
+## Public test follow-up
+
+Reported passing: menu, solo bots, abilities, synchronized movement and winner.
+Reported failing: Quick Play and mobile compatibility. Cross-network multiplayer remains untested.
+
+Fix candidate: public loadout selection preserves ready status/countdown; touch controls appear on hybrid devices and narrow screens, track joystick pointer ownership, and fit narrow screens/safe areas. Touch releases on the arena no longer cancel a held FIRE button.
+
+Retest before release:
+- Two fresh browser sessions choose the same Quick Play mode. Change loadouts during countdown; both should start together. Repeat with three and four players. UNREADY intentionally pauses the queue.
+- On an actual phone, test portrait and landscape, MOVE + AIM + held FIRE simultaneously, release AIM while holding FIRE, then each ability. Rotate and verify all controls remain reachable; no scrolling/zoom gesture should steal a joystick.
+- Use Wi-Fi on one device and cellular on another. Join by code and Quick Play, finish a round, refresh/reconnect within 30 seconds and test connection loss. Record device/browser, mode, time and symptom for any failure.
+
+Automated checks cannot certify physical touch input or independent-network reliability. Keep release blocked until these retests pass on the deployed fix.
