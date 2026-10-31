@@ -1074,7 +1074,8 @@ footer em {
     padding: 9px;
   }
   .room-share .quiet-button {
-    display: none;
+    display: block;
+    grid-column: 1 / -1;
   }
   .room-share > small {
     font-size: 7px;
@@ -1201,84 +1202,6 @@ footer em {
   }
   .room-heading h2 {
     font-size: 18px;
-  }
-}
-@media (max-height: 550px) and (orientation: landscape) {
-  main.in-match {
-    padding: 5px 15px;
-  }
-  .in-match header,
-  .in-match .room-heading,
-  .in-match footer,
-  .in-match .rules,
-  .in-match .match-tip {
-    display: none;
-  }
-  .in-match .battle-hud {
-    margin-bottom: 5px;
-    padding: 3px 15px;
-  }
-  .in-match .score-team strong {
-    font-size: 22px;
-  }
-  .in-match .score-clock > b {
-    font-size: 16px;
-  }
-  .in-match .score-clock small {
-    display: none;
-  }
-  .in-match .arena {
-    height: 68vh;
-    aspect-ratio: auto;
-  }
-  .in-match .abilities {
-    margin-top: 5px;
-    gap: 8px;
-  }
-  .in-match .health,
-  .in-match .ability {
-    padding: 5px 12px;
-    min-height: 34px;
-  }
-  .in-match .health > small,
-  .in-match .health > i {
-    display: none;
-  }
-  .in-match .health > b {
-    margin: 0;
-    font-size: 18px;
-  }
-  .in-match .ability small {
-    margin-top: 2px;
-  }
-  .in-match .touch {
-    position: fixed;
-    bottom: 60px;
-    left: 35px;
-    right: 35px;
-    padding: 0;
-    z-index: 3;
-    pointer-events: none;
-  }
-  .in-match .touch > * {
-    pointer-events: auto;
-  }
-  .in-match .control-status {
-    position: absolute;
-    top: 40px;
-    left: 50%;
-    transform: translateX(-50%);
-    padding: 5px;
-    font-size: 7px;
-    pointer-events: none;
-  }
-  .in-match .touch .stick {
-    width: 82px;
-    height: 82px;
-  }
-  .in-match .touch .stick i {
-    left: 21px;
-    top: 21px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -1665,16 +1588,257 @@ footer em {
   }
 }
 
-/* Keep twin-stick controls inside narrow phones and device safe areas. */
-@media (max-width: 700px) {
-  .touch { gap: 8px; padding-bottom: max(12px, env(safe-area-inset-bottom)); }
-  .touch .stick { flex: 0 0 68px; width: 68px; height: 68px; }
-  .touch .stick i { left: 15px; top: 15px; }
-  .touchright { gap: 6px; min-width: 0; }
-  .touch-buttons { gap: 4px; }
-  .touch-buttons button { min-width: 44px; min-height: 44px; padding: 8px 6px; }
-  .in-match .abilities { flex-wrap: wrap; }
+/* Match layout: the arena and controls have separate, non-overlapping cells. */
+.mobile-match-bar {
+  display: none;
 }
-@media (max-height: 550px) and (orientation: landscape) {
-  .in-match .touch { left: max(12px, env(safe-area-inset-left)); right: max(12px, env(safe-area-inset-right)); bottom: max(12px, env(safe-area-inset-bottom)); }
+.touch-buttons button b,
+.touch-buttons button small {
+  display: block;
+}
+.touch-buttons button small {
+  margin-top: 4px;
+  font-size: 8px;
+  opacity: 0.75;
+}
+.touch-buttons button.cooling {
+  background: #263147;
+  border-color: #46536c;
+}
+@media (max-width: 700px),
+  (any-pointer: coarse) and (max-width: 1100px),
+  (orientation: landscape) and (max-height: 600px) and (max-width: 1100px) {
+  main.in-match {
+    position: fixed;
+    inset: 0;
+    max-width: none;
+    margin: 0;
+    height: 100vh;
+    height: 100dvh;
+    box-sizing: border-box;
+    padding: max(4px, env(safe-area-inset-top))
+      max(6px, env(safe-area-inset-right)) max(6px, env(safe-area-inset-bottom))
+      max(6px, env(safe-area-inset-left));
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 44px 36px minmax(0, 1fr) 32px 158px;
+    gap: 5px;
+    overflow: hidden;
+    background: #0d1424;
+  }
+  .in-match > header,
+  .in-match > .room-heading,
+  .in-match > footer,
+  .in-match > .rules,
+  .in-match .match-tip,
+  .in-match > .boosts {
+    display: none;
+  }
+  .in-match .mobile-match-bar {
+    display: flex;
+    grid-row: 1;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+  }
+  .mobile-match-bar span {
+    flex: 1;
+    font: 10px monospace;
+    overflow: hidden;
+  }
+  .mobile-match-bar button {
+    min-height: 44px;
+    padding: 6px 8px;
+    font-size: 9px;
+  }
+  .in-match .battle-hud {
+    grid-row: 2;
+    padding: 3px 12px;
+    margin: 0;
+    min-width: 0;
+  }
+  .in-match .score-team {
+    gap: 8px;
+  }
+  .in-match .score-team span {
+    font-size: 8px;
+    letter-spacing: 0;
+  }
+  .in-match .score-team strong {
+    font-size: 22px;
+  }
+  .in-match .score-clock > b {
+    font-size: 13px;
+  }
+  .in-match .score-clock small {
+    display: none;
+  }
+  .in-match .arenaWrap {
+    grid-row: 3;
+    min-height: 0;
+    min-width: 0;
+  }
+  .in-match .arena {
+    position: absolute;
+    inset: 0;
+    height: 100%;
+    width: 100%;
+    aspect-ratio: auto;
+  }
+  .in-match .abilities {
+    grid-row: 4;
+    grid-template-columns: 1fr;
+    margin: 0;
+    gap: 0;
+  }
+  .in-match .ability {
+    display: none;
+  }
+  .in-match .health {
+    padding: 4px 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .in-match .health > b {
+    font-size: 16px;
+    margin: 0;
+  }
+  .in-match .health > i {
+    flex: 1;
+  }
+  .in-match .health > small {
+    font-size: 8px;
+  }
+  .in-match .touch {
+    grid-row: 5;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 4px 8px;
+    min-width: 0;
+  }
+  .in-match .touch .stick {
+    flex: 0 0 76px;
+    width: 76px;
+    height: 76px;
+  }
+  .in-match .touch .stick i {
+    left: 19px;
+    top: 19px;
+  }
+  .in-match .touchright {
+    gap: 8px;
+    min-width: 0;
+  }
+  .in-match .touch-buttons {
+    grid-template-columns: repeat(2, minmax(52px, 1fr));
+    gap: 5px;
+  }
+  .in-match .touch-buttons button {
+    min-width: 52px;
+    min-height: 54px;
+    padding: 7px 5px;
+    font-size: 9px;
+  }
+  .in-match .scores-toggle {
+    display: none;
+  }
+  .in-match .kill-feed {
+    top: 5px;
+    right: 5px;
+    font-size: 8px;
+    max-width: 55%;
+  }
+  .in-match .scoreboard {
+    inset: 4px;
+    overflow: auto;
+    padding: 10px;
+    font-size: 10px;
+  }
+  .in-match .control-status {
+    position: fixed;
+    bottom: 166px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 8px;
+    pointer-events: none;
+  }
+}
+@media (orientation: landscape) and (max-height: 600px) and (max-width: 1100px) {
+  main.in-match {
+    grid-template-columns: 88px minmax(0, 1fr) 166px;
+    grid-template-rows: 44px 30px minmax(0, 1fr) 28px;
+    gap: 4px;
+  }
+  .in-match .mobile-match-bar {
+    grid-column: 1 / -1;
+  }
+  .in-match .battle-hud {
+    grid-column: 2;
+  }
+  .in-match .arenaWrap {
+    grid-column: 2;
+  }
+  .in-match .abilities {
+    grid-column: 2;
+  }
+  .in-match .touch {
+    display: contents;
+  }
+  .in-match .touch > .stick {
+    grid-column: 1;
+    grid-row: 2 / 5;
+    align-self: center;
+    justify-self: center;
+  }
+  .in-match .touchright {
+    grid-column: 3;
+    grid-row: 2 / 5;
+    flex-direction: column;
+    justify-content: center;
+    gap: 8px;
+  }
+  .in-match .touch-buttons {
+    width: 100%;
+  }
+  .in-match .touch-buttons button {
+    min-height: 44px;
+  }
+  .in-match .control-status {
+    bottom: max(8px, env(safe-area-inset-bottom));
+  }
+}
+
+@media (max-width: 700px),
+  (any-pointer: coarse) and (max-width: 1100px),
+  (orientation: landscape) and (max-height: 600px) and (max-width: 1100px) {
+  .in-match > .boosts {
+    display: block;
+    position: absolute;
+    bottom: 202px;
+    left: 10px;
+    right: 10px;
+    z-index: 2;
+    pointer-events: none;
+    padding: 2px;
+    min-height: 0;
+    font-size: 8px;
+  }
+}
+@media (orientation: landscape) and (max-height: 600px) and (max-width: 1100px) {
+  .in-match > .boosts {
+    bottom: 38px;
+    left: 100px;
+    right: 180px;
+  }
+}
+
+.settings-audio {
+  display: flex;
+  gap: 8px;
+}
+.settings-audio button {
+  min-height: 44px;
 }

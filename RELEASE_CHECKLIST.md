@@ -44,3 +44,13 @@ Retest before release:
 - Use Wi-Fi on one device and cellular on another. Join by code and Quick Play, finish a round, refresh/reconnect within 30 seconds and test connection loss. Record device/browser, mode, time and symptom for any failure.
 
 Automated checks cannot certify physical touch input or independent-network reliability. Keep release blocked until these retests pass on the deployed fix.
+
+## PR #5 deployed public results and mobile redesign
+
+User-reported passes: same Quick Play lobby, countdown/auto-start, joystick movement, fire/dash/shield/special, Wi-Fi/cellular matching and synchronized gameplay without disconnecting. Ability changes during matchmaking are still untested publicly. Mobile layout failed playability review.
+
+The follow-up branch `fix/mobile-match-layout` replaces the mobile match stack with a viewport-sized grid. Portrait has a separate bottom control dock; landscape puts controls beside the arena. Health stays visible, action buttons show server cooldowns, and Scores/Settings/Leave remain accessible. Parent resize observation refreshes Phaser sizing after rotation. The lobby Leave button is visible on small screens again.
+
+Local QA: browser preview frames at 320×568, 390×844 and 844×390; check no control/arena overlap, no main-container overflow, rotation resizing, settings and scoreboard. This verifies CSS layout, not physical-phone ergonomics or safe-area hardware.
+
+Release remains blocked pending the redesigned build's real-phone playability check (portrait and landscape, browser bars visible, simultaneous move/aim/fire, all loadouts, rotation, settings, scoreboard, leaving and rematch) and a deployed two-human Quick Play test changing abilities while the countdown is active. Keep the earlier Wi-Fi/cellular passes recorded; repeat a short network smoke after deployment rather than treating them as untested.

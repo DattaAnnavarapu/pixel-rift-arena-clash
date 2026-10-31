@@ -165,3 +165,7 @@ Browser QA includes the earlier four-client flow plus single-human Frost Bridge 
 All game art and audio are generated procedurally in code. No downloaded asset packs or recordings are required.
 
 Release validation: `npm run release:check` also checks `/health` version/protocol, `/api/status`, built HTML/JS, and response headers using a temporary production server. The release remains a review candidate until merged and verified on the public host.
+
+### Mobile match layout
+
+Phone matches use a compact HUD and a separate touch-control area. Portrait places the controls below the arena; landscape places movement on the left and aim/actions on the right for a larger play view. Action buttons display server cooldowns. Scores, settings and leaving remain available during matches. Rotate to landscape for the clearest arena view on small phones.
