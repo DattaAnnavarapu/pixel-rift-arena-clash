@@ -175,22 +175,61 @@ arenas.grove.walls = arenas.grove.walls.map((w, i) => ({
 export type ArenaId = keyof typeof arenas;
 export const modes = {
   crystal: {
+    duration: 180000,
     name: "Crystal Clash",
     target: 20,
     description: "Crystals +1 · knockouts +3",
   },
   knockout: {
+    duration: 180000,
     name: "Knockout",
     target: 15,
     description: "Knockouts +3 · no crystals",
   },
   control: {
+    duration: 180000,
     name: "Rift Control",
     target: 40,
     description: "Hold the center · +1 per second",
   },
+  blitz: {
+    name: "Blitz",
+    duration: 90000,
+    target: 30,
+    description: "Crystals +2 · KOs +3 · 90 seconds",
+  },
 } as const;
 export type ModeId = keyof typeof modes;
+export const loadouts = {
+  nova: {
+    name: "NOVA",
+    glyph: "✦",
+    cooldown: 8000,
+    description: "3-bolt spread · 8s cooldown",
+  },
+  mend: {
+    name: "MEND",
+    glyph: "✚",
+    cooldown: 12000,
+    description: "Restore 30 HP · 12s cooldown",
+  },
+  blink: {
+    name: "BLINK",
+    glyph: "◇",
+    cooldown: 10000,
+    description: "Teleport up to 120px · 10s cooldown",
+  },
+  pulse: {
+    name: "PULSE",
+    glyph: "◎",
+    cooldown: 9000,
+    description: "20 damage + knockback · 120px · 9s",
+  },
+} as const;
+export type LoadoutId = keyof typeof loadouts;
+export function usesCrystals(mode: ModeId) {
+  return mode === "crystal" || mode === "blitz";
+}
 export const walls: readonly Wall[] = arenas.astral.walls;
 export type Input = {
   x: number;
@@ -200,6 +239,7 @@ export type Input = {
   dash: boolean;
   shield: boolean;
   special?: boolean;
+  sequence?: number;
 };
 export type Player = {
   id: string;
@@ -220,7 +260,8 @@ export type Player = {
   shield: number;
   guard: number;
   special: number;
-  loadout: "nova" | "mend" | "blink";
+  loadout: LoadoutId;
+  lastSequence?: number;
   bot?: boolean;
   stormTick?: number;
   portalUntil?: number;
@@ -251,7 +292,8 @@ export type Effect = {
     | "blink"
     | "portal"
     | "pickup"
-    | "break";
+    | "break"
+    | "pulse";
   x: number;
   y: number;
   team: number;
@@ -288,6 +330,8 @@ export type Room = {
   emptySince?: (number | null)[];
   finishReason?: string;
   matchId?: string;
+  publicMatch?: boolean;
+  startsAt?: number;
   overtimeStart?: number;
   brokenWalls?: number[];
   wallHits?: Record<number, number>;
@@ -409,10 +453,10 @@ export function start(r: Room, now: number) {
   r.phase = "playing";
   r.matchId = `${r.code}-${now}`;
   r.scores = [0, 0];
-  r.end = now + 180000;
+  r.end = now + modes[r.mode].duration;
   r.winner = "";
   r.bolts = [];
-  r.crystals = r.mode === "crystal" ? [{ x: 480, y: 300 }] : [];
+  r.crystals = usesCrystals(r.mode) ? [{ x: 480, y: 300 }] : [];
   r.effects = [];
   r.brokenWalls = [];
   r.wallHits = {};
@@ -595,7 +639,51 @@ export function tick(r: Room, now: number, dt: number) {
       effect(r, "shot", p, now);
     }
     if (a.special && now >= p.special) {
-      if (p.loadout === "blink") {
+      if (p.loadout === "pulse") {
+        p.special = now + loadouts.pulse.cooldown;
+        for (const enemy of r.players) {
+          if (
+            !enemy.online ||
+            enemy.respawn ||
+            enemy.team === p.team ||
+            now < enemy.guard ||
+            now < enemy.immune ||
+            Math.hypot(enemy.x - p.x, enemy.y - p.y) > 120
+          )
+            continue;
+          const steps = Math.ceil(Math.hypot(enemy.x - p.x, enemy.y - p.y) / 8);
+          if (
+            Array.from({ length: steps }, (_, i) =>
+              blocked(
+                p.x + ((enemy.x - p.x) * (i + 1)) / (steps + 1),
+                p.y + ((enemy.y - p.y) * (i + 1)) / (steps + 1),
+                2,
+                arena,
+                r.brokenWalls,
+              ),
+            ).some(Boolean)
+          )
+            continue;
+          damage(
+            r,
+            enemy,
+            now < (p.damageUntil ?? 0) ? 40 : 20,
+            p.team,
+            p.id,
+            now,
+          );
+          const angle = Math.atan2(enemy.y - p.y, enemy.x - p.x);
+          if (!enemy.respawn)
+            for (let i = 0; i < 18; i++) {
+              const x = enemy.x + Math.cos(angle) * 4,
+                y = enemy.y + Math.sin(angle) * 4;
+              if (blocked(x, y, 13, arena, r.brokenWalls)) break;
+              enemy.x = x;
+              enemy.y = y;
+            }
+        }
+        effect(r, "pulse", p, now);
+      } else if (p.loadout === "blink") {
         p.special = now + 10000;
         for (let distance = 4; distance <= 120; distance += 4) {
           const x = p.x + Math.cos(a.angle) * 4,
@@ -658,7 +746,7 @@ export function tick(r: Room, now: number, dt: number) {
     if (p.respawn) continue;
     r.crystals = r.crystals.filter((c) => {
       if (Math.hypot(c.x - p.x, c.y - p.y) < 26) {
-        r.scores[p.team]++;
+        r.scores[p.team] += mode === "blitz" ? 2 : 1;
         p.collected++;
         effect(r, "crystal", { ...c, team: p.team }, now);
         return false;
@@ -732,7 +820,7 @@ export function tick(r: Room, now: number, dt: number) {
         damage(r, p, 25, 1 - p.team, "storm", now);
       }
     }
-  if (mode === "crystal" && now >= r.nextCrystal) {
+  if (usesCrystals(mode) && now >= r.nextCrystal) {
     r.nextCrystal = now + 3500;
     if (r.crystals.length < 5) {
       const points = arenas[arena].spawns;

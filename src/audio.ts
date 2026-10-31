@@ -1,3 +1,4 @@
+import { settings } from "./settings";
 import { modes, type Snapshot } from "../server/game";
 // Original synthesized chiptune; no downloads or copyrighted recordings.
 let urgent = false;
@@ -42,12 +43,20 @@ function tone(
     g.disconnect();
   };
 }
+export function setVolume(value: number) {
+  if (master && context)
+    master.gain.setTargetAtTime(
+      Math.max(0, Math.min(1, value)),
+      context.currentTime,
+      0.05,
+    );
+}
 export function unlock() {
   try {
     if (!context) {
       context = new AudioContext();
       master = context.createGain();
-      master.gain.value = 0.7;
+      master.gain.value = settings.volume;
       const compressor = context.createDynamicsCompressor();
       compressor.threshold.value = -18;
       compressor.ratio.value = 8;
@@ -124,6 +133,9 @@ export function sound(kind: string, distance = 0) {
       break;
     case "break":
       tone(100, 0.2, 0.03, "sawtooth", 30);
+      break;
+    case "pulse":
+      tone(80, 0.3, 0.035, "sine", 300);
       break;
     case "reflect":
       tone(1000, 0.12, 0.025, "triangle", 1700);

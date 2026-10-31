@@ -19,7 +19,7 @@ code .
 
 ```powershell
 git fetch origin
-git switch feature/game-enhancements
+git switch feature/release-ready
 ```
 
 4. Check that Node.js and npm work, then install dependencies:
@@ -47,8 +47,8 @@ Open the game in two or more browser tabs/windows. Create a room, copy the six-c
 ### Update your local checkout
 
 ```powershell
-git switch feature/game-enhancements
-git pull origin feature/game-enhancements
+git switch feature/release-ready
+git pull origin feature/release-ready
 npm ci
 npm run dev
 ```
@@ -67,6 +67,16 @@ npm run dev
 npm test
 npm run build
 ```
+
+## Release candidate 1.1
+
+- **Quick Play:** opt into a public lobby by mode. Private codes stay private. Two ready humans on opposing teams start automatically after five seconds; solo practice remains in private rooms with bots. Teams/rules are fixed in public lobbies.
+- **Pulse:** Q/touch special deals 20 damage to enemies within 120px and pushes them up to 72px, stopping at walls. Cover, shields and spawn protection block it; cooldown is 9s. Double damage also doubles Pulse damage.
+- **Blitz:** a 90-second crystal race. Crystals +2, KOs +3, target 30. Existing overtime and forfeit rules apply.
+- First-match field guide; arena previews; saved volume, reduced-motion and particle settings. Match controls pause while a panel is open, but the multiplayer match continues.
+- Visible latency and stalled-snapshot feedback; volatile sequenced inputs; transport fallback; explicit leave cleanup; expired-session and protocol-update messages; graceful shutdown notice.
+- Phaser loads when entering a room, rather than on the menu. Production output separates the menu, renderer and engine bundles.
+- `npm run release:check` runs tests, build and production smoke checks. See [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) for manual review and the publish procedure.
 
 ## What's new
 
@@ -90,26 +100,27 @@ npm run build
 | Mode          | Scoring                                                                                       | Target |
 | ------------- | --------------------------------------------------------------------------------------------- | ------ |
 | Crystal Clash | Crystals +1; knockouts +3                                                                     | 20     |
+| Blitz         | Crystals +2; knockouts +3; 90-second timer                                                    | 30     |
 | Knockout      | Knockouts +3; no crystals                                                                     | 15     |
 | Rift Control  | Occupy the center without an opponent; +1 per second. KOs clear the zone but award no points. | 40     |
 
-All matches last three minutes unless a team reaches the target first. A tie triggers 30 seconds of sudden death: the next score that creates a lead wins. Overtime bounds shrink every five seconds by 60px horizontally and 35px vertically per side (capped at 360/210px). Outside deals 25 HP each second, subject to shield/spawn protection. Still tied after overtime is a draw. Players respawn after three seconds with 1.5 seconds of protection. No friendly fire.
+All modes except Blitz last three minutes unless a team reaches the target first. A tie triggers 30 seconds of sudden death: the next score that creates a lead wins. Overtime bounds shrink every five seconds by 60px horizontally and 35px vertically per side (capped at 360/210px). Outside deals 25 HP each second, subject to shield/spawn protection. Still tied after overtime is a draw. Players respawn after three seconds with 1.5 seconds of protection. No friendly fire.
 
 ## Controls and lobby
 
-WASD/arrows move, mouse aims, hold click to fire (20 damage per bolt, 0.5s interval), Space dashes (five-second cooldown), E shields for 1.5 seconds (12-second cooldown), Q uses Nova/Mend/Blink. Shields reflect bolts with ownership transferred to the defender; a reflected bolt can be reflected again. Touch devices have MOVE/AIM sticks plus FIRE/DASH/SHIELD/special buttons; landscape is recommended.
+WASD/arrows move, mouse aims, hold click to fire (20 damage per bolt, 0.5s interval), Space dashes (five-second cooldown), E shields for 1.5 seconds (12-second cooldown), Q uses Nova/Mend/Blink/Pulse. Shields reflect bolts with ownership transferred to the defender; a reflected bolt can be reflected again. Touch devices have MOVE/AIM sticks plus FIRE/DASH/SHIELD/special buttons; landscape is recommended.
 
-| Action     | Desktop                                              | Mobile              |
-| ---------- | ---------------------------------------------------- | ------------------- |
-| Move / aim | WASD or arrows / mouse                               | MOVE / AIM sticks   |
-| Fire       | Hold click                                           | FIRE                |
-| Dash       | Space · 5s, 180ms burst; aim direction if stationary | DASH                |
-| Shield     | E · 1.5s duration, 12s cooldown, reflects bolts      | SHIELD              |
-| Special    | Q · Nova 8s, Mend 12s, Blink 10s                     | NOVA / MEND / BLINK |
-| Scoreboard | Hold Tab                                             | SCORES button       |
-| Practice   | Host: FILL WITH BOTS / REMOVE BOTS                   | Same lobby buttons  |
+| Action     | Desktop                                              | Mobile                      |
+| ---------- | ---------------------------------------------------- | --------------------------- |
+| Move / aim | WASD or arrows / mouse                               | MOVE / AIM sticks           |
+| Fire       | Hold click                                           | FIRE                        |
+| Dash       | Space · 5s, 180ms burst; aim direction if stationary | DASH                        |
+| Shield     | E · 1.5s duration, 12s cooldown, reflects bolts      | SHIELD                      |
+| Special    | Q · Nova 8s, Mend 12s, Blink 10s, Pulse 9s           | NOVA / MEND / BLINK / PULSE |
+| Scoreboard | Hold Tab                                             | SCORES button               |
+| Practice   | Host: FILL WITH BOTS / REMOVE BOTS                   | Same lobby buttons          |
 
-Create a six-character room code or join an invitation URL. Up to two players per team; 2-vs-1 is allowed with a warning. The host chooses the arena and mode. Changing either clears everyone's ready status. Each player chooses a loadout and marks ready; the host starts when all connected players are ready and each team has someone. Results allow a new ready check and rematch. No accounts or installs.
+Create a six-character room code or join an invitation URL. Up to two players per team; 2-vs-1 is allowed with a warning. The host chooses the arena and mode. Changing either clears everyone's ready status. Each player chooses a loadout and marks ready; the host starts when all connected players are ready and each team has someone. Results allow a new ready check and rematch. No accounts or installs. Quick Play automatically readies newcomers; changing a special makes you unready until you confirm again.
 
 ## Levels
 
@@ -124,7 +135,7 @@ Crystal Clash cycles through shared mirrored spawn points, including flanks, at 
 
 ## Multiplayer architecture
 
-The server simulates at 30Hz and broadcasts snapshots at 15Hz. Clients send bounded movement/action inputs. The server calculates collisions, cooldowns, hits, healing, health, respawns, objectives and match results. Remote rendering smooths authoritative positions. Local movement predicts with shared collisions and corrects toward server state; projectile extrapolation is capped at 100ms. Prediction never awards damage, scores or pickups. Short-lived event IDs drive effects/audio without duplicate playback. Input older than 500ms is cleared.
+The server simulates at 30Hz and broadcasts snapshots at 15Hz. Clients send bounded movement/action inputs. The server calculates collisions, cooldowns, hits, healing, health, respawns, objectives and match results. Remote rendering smooths authoritative positions. Local movement predicts with shared collisions and corrects toward server state; projectile extrapolation is capped at 100ms. Prediction never awards damage, scores or pickups. Short-lived event IDs drive effects/audio without duplicate playback. Input older than 500ms is cleared. Optional sequence numbers reject duplicate/out-of-order inputs. Protocol 2 is required on join; older tabs receive a reload message. The client uses volatile input packets, so reconnection never replays queued attacks.
 
 Reconnect tokens are random per-tab sessionStorage values; nicknames and audio preferences use localStorage. Disconnected slots remain for 30 seconds. Hosts migrate to connected players, and a returning player can become host when everyone else is offline. Rooms with no connected humans expire after ten minutes, even if bots remain. Rooms and tokens live in memory: restarts/deployments end matches. Run a single instance. Multi-instance scaling requires shared room ownership/routing, not just a Socket.IO adapter. Room codes are join conveniences, not access-security boundaries.
 
@@ -149,6 +160,8 @@ npm run build
 
 The suite includes regression tests for all new gameplay systems plus a real multi-client network integration test. The network test starts a disposable in-process server and uses actual Socket.IO clients: four-player capacity, full-room rejection, readiness, host-only settings, shared map/mode, movement validation, room isolation, loadout preservation on reconnect and host migration. No skipped tests in the default run. Set TEST_URL only to test a disposable external deployment instead.
 
-Browser QA includes the earlier four-client flow plus single-human Frost Bridge launch with three labeled bots, live combat, kill feed, scoreboard and teammate spectating. A production-only dependency install served /health and the built client successfully. Physical iOS/Android touch testing, perceptual audio quality and public-host latency remain manual checks before merging. Bots use local steering rather than full pathfinding, and prediction is lightweight reconciliation rather than input-history rollback. A large Phaser bundle warning remains informational; the production build succeeds.
+Browser QA includes the earlier four-client flow plus single-human Frost Bridge launch with three labeled bots, live combat, kill feed, scoreboard and teammate spectating. A production-only dependency install served /health and the built client successfully. Physical iOS/Android touch testing, perceptual audio quality and public-host latency remain manual checks before merging. Bots use local steering rather than full pathfinding, and prediction is lightweight reconciliation rather than input-history rollback. The Phaser chunk remains large, but it is separate from the initial menu bundle. The production build succeeds.
 
 All game art and audio are generated procedurally in code. No downloaded asset packs or recordings are required.
+
+Release validation: `npm run release:check` also checks `/health` version/protocol, `/api/status`, built HTML/JS, and response headers using a temporary production server. The release remains a review candidate until merged and verified on the public host.

@@ -1,4 +1,4 @@
-import { blocked, inBush, player, type Room } from "./game.js";
+import { blocked, inBush, usesCrystals, player, type Room } from "./game.js";
 export function manageBots(r: Room, actor: string, add: boolean) {
   if (actor !== r.host || !["lobby", "finished"].includes(r.phase))
     return false;
@@ -39,7 +39,7 @@ export function driveBots(r: Room, now: number) {
           Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y),
       )[0];
     const target =
-      r.mode === "crystal" && r.crystals.length
+      usesCrystals(r.mode ?? "crystal") && r.crystals.length
         ? r.crystals.reduce((a, b) =>
             Math.hypot(a.x - p.x, a.y - p.y) < Math.hypot(b.x - p.x, b.y - p.y)
               ? a

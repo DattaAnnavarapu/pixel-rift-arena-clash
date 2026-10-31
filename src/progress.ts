@@ -1,4 +1,4 @@
-import type { Snapshot } from "../server/game";
+import { loadouts, type Snapshot } from "../server/game";
 export type Progress = {
   wins: number;
   kos: number;
@@ -69,9 +69,7 @@ export function updateProgress(
 }
 export function favorite(p: Progress) {
   const entries = Object.entries(p.loadouts)
-    .filter(
-      ([name, value]) => ["nova", "mend", "blink"].includes(name) && value > 0,
-    )
+    .filter(([name, value]) => Object.hasOwn(loadouts, name) && value > 0)
     .sort((a, b) => b[1] - a[1]);
   return entries[0]?.[0].toUpperCase() ?? "—";
 }

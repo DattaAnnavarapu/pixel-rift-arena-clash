@@ -1,3 +1,12 @@
+import {
+  findPublicRoom,
+  updateMatchmaking,
+  removePlayer,
+  validSequence,
+  validMode,
+  PROTOCOL_VERSION,
+  RELEASE_VERSION,
+} from "./release.js";
 import { manageBots } from "./bots.js";
 import express from "express";
 import { createServer } from "node:http";
@@ -11,6 +20,7 @@ import {
   snapshot,
   removeExpiredPlayer,
   type Room,
+  loadouts,
 } from "./game.js";
 import { pathToFileURL } from "node:url";
 export async function createGameServer(
@@ -21,10 +31,38 @@ export async function createGameServer(
   let vite: Awaited<ReturnType<typeof import("vite").createServer>> | undefined;
   const app = express(),
     http = createServer(app),
-    io = new Server(http, { maxHttpBufferSize: 4096 });
+    io = new Server(http, {
+      maxHttpBufferSize: 4096,
+      pingInterval: 10000,
+      pingTimeout: 15000,
+    });
   const rooms = new Map<string, Room>();
   const sessions = new Map<string, { code: string; id: string }>();
-  app.get("/health", (_, res) => res.json({ ok: true, rooms: rooms.size }));
+  app.disable("x-powered-by");
+  app.use((_req, res, next) => {
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+    next();
+  });
+  app.get("/health", (_, res) =>
+    res.json({
+      ok: !closing,
+      version: RELEASE_VERSION,
+      protocol: PROTOCOL_VERSION,
+    }),
+  );
+  app.get("/api/status", (_, res) =>
+    res.json({
+      version: RELEASE_VERSION,
+      online: [...rooms.values()].reduce(
+        (n, r) => n + r.players.filter((p) => p.online && !p.bot).length,
+        0,
+      ),
+      openMatches: [...rooms.values()].filter(
+        (r) => r.publicMatch && r.phase === "lobby",
+      ).length,
+    }),
+  );
   function emit(r: Room) {
     for (const sid of io.sockets.adapter.rooms.get(r.code) ?? []) {
       const socket = io.sockets.sockets.get(sid);
@@ -32,12 +70,26 @@ export async function createGameServer(
     }
   }
   io.on("connection", (s) => {
+    s.emit("hello", { version: RELEASE_VERSION, protocol: PROTOCOL_VERSION });
+    s.on("ping-check", (ack) => {
+      if (typeof ack === "function" && ++count <= 100) ack({ now: Date.now() });
+    });
     let room: Room | undefined,
       id = "";
-    let count = 0;
-    const rate = setInterval(() => (count = 0), 1000);
+    let count = 0,
+      joins = 0;
+    const rate = setInterval(() => {
+      count = 0;
+      joins = 0;
+    }, 1000);
     s.on("enter", (data, ack) => {
-      if (++count > 10 || typeof ack !== "function") return;
+      if (typeof ack !== "function") return;
+      if (++joins > 10)
+        return ack({ error: "Too many join attempts. Try again shortly." });
+      if (data?.protocol !== PROTOCOL_VERSION)
+        return ack({
+          error: "Game version changed. Reload this page to update.",
+        });
       if (room) return ack({ error: "Already in a room" });
       const name =
         String(data?.name || "")
@@ -45,6 +97,11 @@ export async function createGameServer(
           .slice(0, 18) || "Rifter";
       let token = String(data?.token || "");
       const old = sessions.get(token);
+      if (token && !old)
+        return ack({
+          error:
+            "Your session expired or the server restarted. Join a new room.",
+        });
       if (old) {
         const r = rooms.get(old.code),
           p = r?.players.find((p) => p.id === old.id);
@@ -63,9 +120,16 @@ export async function createGameServer(
           };
         }
       }
+      if (token && !room)
+        return ack({
+          error: "This player is already connected in another tab.",
+        });
       if (!room) {
+        const quick = data?.matchmake === true;
+        const chosenMode = validMode(data?.mode) ? data.mode : "crystal";
+        if (quick) room = findPublicRoom(rooms.values(), chosenMode);
         let code = String(data?.code || "").toUpperCase();
-        if (data?.create) {
+        if (!room && (data?.create || quick)) {
           do {
             code = randomBytes(4).toString("hex").slice(0, 6).toUpperCase();
           } while (rooms.has(code));
@@ -75,7 +139,8 @@ export async function createGameServer(
             players: [],
             phase: "lobby",
             arena: "astral",
-            mode: "crystal",
+            mode: quick ? chosenMode : "crystal",
+            publicMatch: quick,
             effects: [],
             scores: [0, 0],
             end: 0,
@@ -86,7 +151,7 @@ export async function createGameServer(
             updated: Date.now(),
           };
           rooms.set(code, room);
-        } else room = rooms.get(code);
+        } else if (!room) room = rooms.get(code);
         if (!room) return ack({ error: "Room not found" });
         if (room.players.length >= 4) {
           room = undefined;
@@ -107,30 +172,47 @@ export async function createGameServer(
         token = randomBytes(24).toString("hex");
         sessions.set(token, { code: room.code, id });
       }
+      const joined = room.players.find((p) => p.id === id)!;
+      if (room.publicMatch && room.phase === "lobby") joined.ready = true;
+      joined.lastSequence = -1;
       s.data.playerId = id;
       s.join(room.code);
       if (!room.players.some((p) => p.id === room!.host && p.online))
         room.host = id;
       room.updated = Date.now();
       ack({ id, token, code: room.code });
+      updateMatchmaking(room, Date.now());
       emit(room);
+    });
+    s.on("leave", (ack) => {
+      if (room) {
+        const oldRoom = room;
+        s.leave(oldRoom.code);
+        removePlayer(oldRoom, id, sessions);
+        oldRoom.updated = Date.now();
+        room = undefined;
+        id = "";
+        s.data.playerId = undefined;
+        emit(oldRoom);
+      }
+      if (typeof ack === "function") ack({ ok: true });
     });
     s.on("lobby", (a) => {
       if (!room || ++count > 60 || !["lobby", "finished"].includes(room.phase))
         return;
       const p = room.players.find((p) => p.id === id);
       if (!p) return;
-      configure(room, id, a ?? {});
-      if (typeof a?.bots === "boolean") manageBots(room, id, a.bots);
+      if (!room.publicMatch) configure(room, id, a ?? {});
+      if (!room.publicMatch && typeof a?.bots === "boolean")
+        manageBots(room, id, a.bots);
       if (
-        a?.loadout === "nova" ||
-        a?.loadout === "mend" ||
-        a?.loadout === "blink"
+        typeof a?.loadout === "string" &&
+        Object.hasOwn(loadouts, a.loadout)
       ) {
         p.loadout = a.loadout;
         p.ready = false;
       }
-      if (a?.team === 0 || a?.team === 1) {
+      if (!room.publicMatch && (a?.team === 0 || a?.team === 1)) {
         if (
           room.players.filter((x) => x.team === a.team && x.id !== id).length <
           2
@@ -156,6 +238,8 @@ export async function createGameServer(
       if (!room || ++count > 100) return;
       const p = room.players.find((p) => p.id === id);
       if (!p || !a || ![a.x, a.y, a.angle].every(Number.isFinite)) return;
+      if (!validSequence(a.sequence, p.lastSequence ?? -1)) return;
+      if (a.sequence !== undefined) p.lastSequence = a.sequence;
       p.lastInput = Date.now();
       p.input = {
         x: Math.max(-1, Math.min(1, a.x)),
@@ -198,6 +282,7 @@ export async function createGameServer(
     last = now;
     frames++;
     for (const [code, r] of rooms) {
+      updateMatchmaking(r, now);
       tick(r, now, dt);
       if (frames % 2 === 0) emit(r);
       if (
@@ -243,6 +328,9 @@ export async function createGameServer(
     url: `http://127.0.0.1:${address.port}`,
     close: async () => {
       closing = true;
+      io.emit("server-closing", {
+        message: "Server is updating. Rooms reset; please reconnect shortly.",
+      });
       clearInterval(loop);
       for (const timer of cleanupTimers) clearTimeout(timer);
       await new Promise<void>((resolve) => io.close(() => resolve()));
