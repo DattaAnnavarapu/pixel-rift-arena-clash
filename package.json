@@ -1,14 +1,14 @@
 {
   "name": "pixel-rift",
-  "version": "1.2.0-alpha.1",
+  "version": "1.2.0-alpha.2",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "node --import tsx server/index.ts",
-    "build": "tsc --noEmit && vite build",
-    "start": "node --import tsx server/start.ts",
+    "build": "tsc --noEmit && vite build && tsc -p tsconfig.server.json",
+    "start": "node build/server/start.js",
     "test": "node --import tsx --test tests/*.test.ts",
-    "release:check": "npm test && npm run build && node --import tsx scripts/production-smoke.ts",
+    "release:check": "npm test && npm run build && node --import tsx scripts/production-smoke.ts && node --import tsx scripts/compiled-smoke.ts",
     "test:high-ping": "node --import tsx scripts/high-ping-smoke.ts"
   },
   "dependencies": {

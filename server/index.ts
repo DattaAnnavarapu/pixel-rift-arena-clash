@@ -576,13 +576,15 @@ export async function createGameServer(
     }
   }
   const cliPortIndex = process.argv.indexOf("--port");
+  const requested = Number(
+    process.env.PORT ??
+      (cliPortIndex >= 0 ? process.argv[cliPortIndex + 1] : 3000),
+  );
   const port =
     options.port ??
-    (Number(
-      process.env.PORT ||
-        (cliPortIndex >= 0 ? process.argv[cliPortIndex + 1] : 3000),
-    ) ||
-      3000);
+    (Number.isInteger(requested) && requested >= 0 && requested <= 65535
+      ? requested
+      : 3000);
   await new Promise<void>((resolve, reject) => {
     http.once("error", reject);
     http.listen(port, "0.0.0.0", () => {
