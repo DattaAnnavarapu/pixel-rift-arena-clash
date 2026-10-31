@@ -1289,3 +1289,125 @@ footer em {
     transform: none;
   }
 }
+.kill-feed {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  font: 10px monospace;
+  pointer-events: none;
+}
+.kill-feed > div {
+  background: #0a1220ce;
+  padding: 7px;
+  margin-bottom: 4px;
+  border-radius: 3px;
+}
+.scores-toggle {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  font-size: 8px;
+  padding: 8px;
+}
+.scoreboard {
+  position: absolute;
+  top: 18%;
+  left: 12%;
+  right: 12%;
+  background: #101c30f0;
+  border: 1px solid #7e8ba9;
+  border-radius: 8px;
+  padding: 20px;
+  z-index: 6;
+}
+.scoreboard table {
+  width: 100%;
+  text-align: left;
+  font: 12px monospace;
+  border-collapse: collapse;
+}
+.scoreboard th,
+.scoreboard td {
+  padding: 12px 5px;
+  border-bottom: 1px solid #37455b;
+}
+.scoreboard h3 {
+  font: 12px monospace;
+  color: #e7d6ff;
+}
+.respawn {
+  inset: auto 20% 20px;
+  background: #0c1325bb;
+  padding: 10px;
+  border-radius: 6px;
+  pointer-events: none;
+}
+.respawn > b {
+  font-size: 34px;
+}
+.respawn > span {
+  font-size: 9px;
+}
+.respawn > small {
+  font-size: 10px;
+}
+@media (max-width: 550px) {
+  .scoreboard {
+    left: 3%;
+    right: 3%;
+    padding: 10px;
+  }
+  .scoreboard table {
+    font-size: 9px;
+  }
+  .kill-feed {
+    font-size: 8px;
+  }
+  .respawn {
+    left: 12%;
+    right: 12%;
+  }
+}
+.bot-controls {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 15px;
+}
+.bot-controls button {
+  font-size: 8px;
+}
+.loadout > button {
+  width: 100%;
+  margin-top: 8px;
+  text-align: left;
+}
+.loadout > button small {
+  display: block;
+  margin-top: 6px;
+}
+.saved-stats {
+  display: flex;
+  gap: 20px;
+  margin: 24px 0;
+  font: 8px monospace;
+  color: #8498b7;
+}
+.saved-stats b {
+  display: block;
+  color: #cab6f3;
+  font: 18px monospace;
+  margin-bottom: 7px;
+}
+.boosts {
+  font: 10px monospace;
+  text-align: center;
+  color: #efce86;
+  padding: 5px;
+  min-height: 10px;
+}
+.loadout > div {
+  flex-wrap: wrap;
+}
+.loadout > div > button {
+  min-width: 135px;
+}

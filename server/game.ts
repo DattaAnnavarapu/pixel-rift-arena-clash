@@ -1,54 +1,177 @@
+import { driveBots } from "./bots.js";
 export const W = 960,
   H = 600;
-export type Wall = { x: number; y: number; w: number; h: number };
-export const arenas = {
-  astral: {
-    name: "Astral Keep",
-    tag: "Balanced lanes · violet stone",
-    floor: 0x151b30,
-    tile: 0x202940,
-    stone: 0x455577,
-    accent: 0xb899ff,
-    walls: [
-      { x: 230, y: 145, w: 95, h: 65 },
-      { x: 635, y: 145, w: 95, h: 65 },
-      { x: 230, y: 390, w: 95, h: 65 },
-      { x: 635, y: 390, w: 95, h: 65 },
-    ],
-  },
-  grove: {
-    name: "Verdant Ruins",
-    tag: "Open center · flanking paths",
-    floor: 0x132b2b,
-    tile: 0x1a3634,
-    stone: 0x42685c,
-    accent: 0x83ebbf,
-    walls: [
-      { x: 210, y: 100, w: 65, h: 145 },
-      { x: 685, y: 355, w: 65, h: 145 },
-      { x: 210, y: 355, w: 65, h: 145 },
-      { x: 685, y: 100, w: 65, h: 145 },
-      { x: 415, y: 80, w: 130, h: 45 },
-      { x: 415, y: 475, w: 130, h: 45 },
-    ],
-  },
-  ember: {
-    name: "Ember Forge",
-    tag: "Tight cover · crossfire corridors",
-    floor: 0x2d2029,
-    tile: 0x392936,
-    stone: 0x735362,
-    accent: 0xffb36b,
-    walls: [
-      { x: 250, y: 100, w: 130, h: 55 },
-      { x: 580, y: 100, w: 130, h: 55 },
-      { x: 250, y: 445, w: 130, h: 55 },
-      { x: 580, y: 445, w: 130, h: 55 },
-      { x: 260, y: 260, w: 65, h: 80 },
-      { x: 635, y: 260, w: 65, h: 80 },
-    ],
-  },
-} as const;
+export type Wall = {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  cracked?: boolean;
+};
+export type Zone = {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  kind: "lava" | "vent" | "bush" | "ice";
+  damage?: number;
+};
+export type PickupKind = "health" | "speed" | "damage";
+export type ArenaData = {
+  name: string;
+  tag: string;
+  floor: number;
+  tile: number;
+  stone: number;
+  accent: number;
+  walls: Wall[];
+  hazards?: Zone[];
+  pads?: { x: number; y: number; toX: number; toY: number }[];
+  pickups?: { x: number; y: number; kind: PickupKind }[];
+  spawns: { x: number; y: number }[];
+};
+export const arenas: Record<"astral" | "grove" | "ember" | "frost", ArenaData> =
+  {
+    astral: {
+      spawns: [
+        { x: 480, y: 300 },
+        { x: 180, y: 90 },
+        { x: 780, y: 510 },
+        { x: 180, y: 510 },
+        { x: 780, y: 90 },
+        { x: 380, y: 265 },
+        { x: 580, y: 335 },
+      ],
+      pads: [
+        { x: 150, y: 300, toX: 810, toY: 300 },
+        { x: 810, y: 300, toX: 150, toY: 300 },
+      ],
+      pickups: [
+        { kind: "health", x: 480, y: 140 },
+        { kind: "speed", x: 380, y: 300 },
+        { kind: "speed", x: 580, y: 300 },
+        { kind: "damage", x: 480, y: 460 },
+      ],
+      name: "Astral Keep",
+      tag: "Balanced lanes · violet stone",
+      floor: 0x151b30,
+      tile: 0x202940,
+      stone: 0x455577,
+      accent: 0xb899ff,
+      walls: [
+        { x: 230, y: 145, w: 95, h: 65 },
+        { x: 635, y: 145, w: 95, h: 65 },
+        { x: 230, y: 390, w: 95, h: 65 },
+        { x: 635, y: 390, w: 95, h: 65 },
+      ],
+    },
+    grove: {
+      spawns: [
+        { x: 480, y: 300 },
+        { x: 140, y: 80 },
+        { x: 820, y: 520 },
+        { x: 140, y: 520 },
+        { x: 820, y: 80 },
+        { x: 340, y: 230 },
+        { x: 620, y: 370 },
+      ],
+      hazards: [
+        { kind: "bush", x: 340, y: 170, w: 80, h: 90 },
+        { kind: "bush", x: 540, y: 340, w: 80, h: 90 },
+      ],
+      pickups: [
+        { kind: "health", x: 480, y: 180 },
+        { kind: "damage", x: 480, y: 420 },
+        { kind: "speed", x: 330, y: 300 },
+        { kind: "speed", x: 630, y: 300 },
+      ],
+      name: "Verdant Ruins",
+      tag: "Open center · flanking paths",
+      floor: 0x132b2b,
+      tile: 0x1a3634,
+      stone: 0x42685c,
+      accent: 0x83ebbf,
+      walls: [
+        { x: 210, y: 100, w: 65, h: 145 },
+        { x: 685, y: 355, w: 65, h: 145 },
+        { x: 210, y: 355, w: 65, h: 145 },
+        { x: 685, y: 100, w: 65, h: 145 },
+        { x: 415, y: 80, w: 130, h: 45 },
+        { x: 415, y: 475, w: 130, h: 45 },
+      ],
+    },
+    ember: {
+      spawns: [
+        { x: 480, y: 300 },
+        { x: 160, y: 130 },
+        { x: 800, y: 470 },
+        { x: 160, y: 470 },
+        { x: 800, y: 130 },
+        { x: 400, y: 220 },
+        { x: 560, y: 380 },
+      ],
+      hazards: [
+        { kind: "lava", x: 370, y: 185, w: 220, h: 18, damage: 5 },
+        { kind: "lava", x: 370, y: 397, w: 220, h: 18, damage: 5 },
+        { kind: "vent", x: 420, y: 265, w: 40, h: 70, damage: 10 },
+        { kind: "vent", x: 500, y: 265, w: 40, h: 70, damage: 10 },
+      ],
+      pickups: [
+        { kind: "health", x: 480, y: 215 },
+        { kind: "damage", x: 480, y: 385 },
+        { kind: "speed", x: 350, y: 300 },
+        { kind: "speed", x: 610, y: 300 },
+      ],
+      name: "Ember Forge",
+      tag: "Tight cover · crossfire corridors",
+      floor: 0x2d2029,
+      tile: 0x392936,
+      stone: 0x735362,
+      accent: 0xffb36b,
+      walls: [
+        { x: 250, y: 100, w: 130, h: 55 },
+        { x: 580, y: 100, w: 130, h: 55 },
+        { x: 250, y: 445, w: 130, h: 55 },
+        { x: 580, y: 445, w: 130, h: 55 },
+        { x: 260, y: 260, w: 65, h: 80 },
+        { x: 635, y: 260, w: 65, h: 80 },
+      ],
+    },
+    frost: {
+      name: "Frost Bridge",
+      tag: "Narrow lanes · slippery center",
+      floor: 0x172b3c,
+      tile: 0x254155,
+      stone: 0x638da0,
+      accent: 0xacf4ff,
+      walls: [
+        { x: 300, y: 80, w: 60, h: 170 },
+        { x: 600, y: 350, w: 60, h: 170 },
+        { x: 600, y: 80, w: 60, h: 170 },
+        { x: 300, y: 350, w: 60, h: 170 },
+      ],
+      hazards: [{ kind: "ice", x: 370, y: 160, w: 220, h: 280 }],
+      pickups: [
+        { kind: "health", x: 480, y: 180 },
+        { kind: "damage", x: 480, y: 420 },
+        { kind: "speed", x: 240, y: 300 },
+        { kind: "speed", x: 720, y: 300 },
+      ],
+      spawns: [
+        { x: 480, y: 300 },
+        { x: 180, y: 100 },
+        { x: 780, y: 500 },
+        { x: 180, y: 500 },
+        { x: 780, y: 100 },
+        { x: 400, y: 280 },
+        { x: 560, y: 320 },
+      ],
+    },
+  };
+arenas.grove.walls = arenas.grove.walls.map((w, i) => ({
+  ...w,
+  cracked: i < 4,
+}));
 export type ArenaId = keyof typeof arenas;
 export const modes = {
   crystal: {
@@ -92,10 +215,20 @@ export type Player = {
   shot: number;
   dash: number;
   burst: number;
+  dashX?: number;
+  dashY?: number;
   shield: number;
   guard: number;
   special: number;
-  loadout: "nova" | "mend";
+  loadout: "nova" | "mend" | "blink";
+  bot?: boolean;
+  stormTick?: number;
+  portalUntil?: number;
+  environmentTick?: number;
+  speedUntil?: number;
+  damageUntil?: number;
+  vx?: number;
+  vy?: number;
   kills: number;
   deaths: number;
   collected: number;
@@ -113,7 +246,12 @@ export type Effect = {
     | "shield"
     | "nova"
     | "mend"
-    | "respawn";
+    | "respawn"
+    | "reflect"
+    | "blink"
+    | "portal"
+    | "pickup"
+    | "break";
   x: number;
   y: number;
   team: number;
@@ -147,6 +285,21 @@ export type Room = {
   eventId?: number;
   nextControl?: number;
   controlTeam?: number;
+  emptySince?: (number | null)[];
+  finishReason?: string;
+  matchId?: string;
+  overtimeStart?: number;
+  brokenWalls?: number[];
+  wallHits?: Record<number, number>;
+  spawnIndex?: number;
+  pickups?: { x: number; y: number; kind: PickupKind; availableAt: number }[];
+  feed?: {
+    id: number;
+    killer: string;
+    victim: string;
+    team: number;
+    at: number;
+  }[];
 };
 export function player(id: string, name: string, team: number): Player {
   return {
@@ -187,6 +340,7 @@ export function blocked(
   y: number,
   r = 13,
   arena: ArenaId = "astral",
+  broken: readonly number[] = [],
 ) {
   return (
     x < r ||
@@ -194,8 +348,12 @@ export function blocked(
     x > W - r ||
     y > H - r ||
     arenas[arena].walls.some(
-      (a) =>
-        x + r > a.x && x - r < a.x + a.w && y + r > a.y && y - r < a.y + a.h,
+      (a, i) =>
+        !broken.includes(i) &&
+        x + r > a.x &&
+        x - r < a.x + a.w &&
+        y + r > a.y &&
+        y - r < a.y + a.h,
     )
   );
 }
@@ -223,7 +381,7 @@ export function configure(
     r.mode = config.mode as ModeId;
     changed = true;
   }
-  if (changed) r.players.forEach((p) => (p.ready = false));
+  if (changed) r.players.forEach((p) => (p.ready = !!p.bot));
   return changed;
 }
 function effect(
@@ -249,15 +407,27 @@ export function start(r: Room, now: number) {
   r.arena ??= "astral";
   r.mode ??= "crystal";
   r.phase = "playing";
+  r.matchId = `${r.code}-${now}`;
   r.scores = [0, 0];
   r.end = now + 180000;
   r.winner = "";
   r.bolts = [];
   r.crystals = r.mode === "crystal" ? [{ x: 480, y: 300 }] : [];
   r.effects = [];
+  r.brokenWalls = [];
+  r.wallHits = {};
+  r.spawnIndex = 0;
+  r.pickups = (arenas[r.arena].pickups ?? []).map((p) => ({
+    ...p,
+    availableAt: 0,
+  }));
+  r.feed = [];
   r.nextCrystal = now + 3500;
   r.nextControl = now + 1000;
   r.controlTeam = -1;
+  r.emptySince = [null, null];
+  r.overtimeStart = undefined;
+  r.finishReason = "";
   r.players.forEach((p, i) =>
     Object.assign(p, {
       x: p.team ? 870 : 90,
@@ -274,6 +444,13 @@ export function start(r: Room, now: number) {
       shield: 0,
       guard: 0,
       special: 0,
+      portalUntil: 0,
+      environmentTick: 0,
+      speedUntil: 0,
+      damageUntil: 0,
+      vx: 0,
+      vy: 0,
+      stormTick: 0,
       kills: 0,
       deaths: 0,
       collected: 0,
@@ -298,7 +475,7 @@ function finish(r: Room) {
       : r.scores[0] > r.scores[1]
         ? "Crimson"
         : "Azure";
-  r.players.forEach((p) => (p.ready = false));
+  r.players.forEach((p) => (p.ready = !!p.bot));
 }
 function damage(
   r: Room,
@@ -318,12 +495,39 @@ function damage(
     if (killer) killer.kills++;
     if (r.mode !== "control") r.scores[team] += 3;
     effect(r, "ko", p, now);
+    r.feed ??= [];
+    r.feed.push({
+      id: r.eventId!,
+      killer: killer?.name ?? "Arena",
+      victim: p.name,
+      team: killer?.team ?? -1,
+      at: now,
+    });
+    r.feed = r.feed.slice(-5);
   }
 }
 export function tick(r: Room, now: number, dt: number) {
   if (!["playing", "overtime"].includes(r.phase)) return;
+  r.emptySince ??= [null, null];
+  for (const team of [0, 1]) {
+    if (r.players.some((p) => p.online && p.team === team))
+      r.emptySince[team] = null;
+    else r.emptySince[team] ??= now;
+  }
+  const absent = [0, 1].filter(
+    (t) => r.emptySince![t] !== null && now - r.emptySince![t]! >= 15000,
+  );
+  if (absent.length) {
+    finish(r);
+    r.finishReason = "forfeit";
+    r.winner =
+      absent.length === 2 ? "Draw" : absent[0] === 0 ? "Azure" : "Crimson";
+    return;
+  }
+  driveBots(r, now);
   dt = Math.max(0, Math.min(dt, 0.06));
-  r.effects = (r.effects ?? []).filter((e) => now - e.at < 1200);
+  r.feed = r.feed?.filter((f) => now - f.at < 6000);
+  r.effects = (r.effects ?? []).filter((e) => now - e.at < 600);
   const before = [...r.scores],
     arena = r.arena ?? "astral",
     mode = r.mode ?? "crystal";
@@ -342,6 +546,8 @@ export function tick(r: Room, now: number, dt: number) {
             2) *
             110;
         p.immune = now + 1500;
+        p.vx = p.vy = 0;
+        p.speedUntil = p.damageUntil = 0;
         effect(r, "respawn", p, now);
       }
       continue;
@@ -351,11 +557,13 @@ export function tick(r: Room, now: number, dt: number) {
       a.x = a.y = 0;
       a.fire = a.dash = a.shield = a.special = false;
     }
-    const n = Math.max(1, Math.hypot(a.x, a.y));
     if (a.dash && now >= p.dash) {
       p.dash = now + 5000;
       p.immune = now + 180;
       p.burst = now + 180;
+      const length = Math.hypot(a.x, a.y);
+      p.dashX = length > 0 ? a.x / length : Math.cos(a.angle);
+      p.dashY = length > 0 ? a.y / length : Math.sin(a.angle);
       effect(r, "dash", p, now);
     }
     if (a.shield && now >= p.shield) {
@@ -363,12 +571,12 @@ export function tick(r: Room, now: number, dt: number) {
       p.guard = now + 1500;
       effect(r, "shield", p, now);
     }
-    const speed = now < p.burst ? 650 : 175;
+    const motion = movementVelocity(p, a, now, dt, arena);
     for (let i = 0; i < 4; i++) {
-      const x = p.x + ((a.x / n) * speed * dt) / 4,
-        y = p.y + ((a.y / n) * speed * dt) / 4;
-      if (!blocked(x, p.y, 13, arena)) p.x = x;
-      if (!blocked(p.x, y, 13, arena)) p.y = y;
+      const x = p.x + (motion.x * dt) / 4,
+        y = p.y + (motion.y * dt) / 4;
+      if (!blocked(x, p.y, 13, arena, r.brokenWalls)) p.x = x;
+      if (!blocked(p.x, y, 13, arena, r.brokenWalls)) p.y = y;
     }
     const fire = (angle: number, damage = 20) =>
       r.bolts.push({
@@ -379,7 +587,7 @@ export function tick(r: Room, now: number, dt: number) {
         owner: p.id,
         team: p.team,
         life: 0.9,
-        damage,
+        damage: now < (p.damageUntil ?? 0) ? damage * 2 : damage,
       });
     if (a.fire && now >= p.shot) {
       p.shot = now + 500;
@@ -387,9 +595,19 @@ export function tick(r: Room, now: number, dt: number) {
       effect(r, "shot", p, now);
     }
     if (a.special && now >= p.special) {
-      if (p.loadout === "mend") {
+      if (p.loadout === "blink") {
+        p.special = now + 10000;
+        for (let distance = 4; distance <= 120; distance += 4) {
+          const x = p.x + Math.cos(a.angle) * 4,
+            y = p.y + Math.sin(a.angle) * 4;
+          if (blocked(x, y, 13, arena, r.brokenWalls)) break;
+          p.x = x;
+          p.y = y;
+        }
+        effect(r, "blink", p, now);
+      } else if (p.loadout === "mend") {
         if (p.hp < 100) {
-          p.special = now + 15000;
+          p.special = now + 12000;
           const amount = Math.min(30, 100 - p.hp);
           p.hp += amount;
           effect(r, "mend", p, now, amount);
@@ -400,6 +618,44 @@ export function tick(r: Room, now: number, dt: number) {
         effect(r, "nova", p, now);
       }
     }
+    for (const pad of arenas[arena].pads ?? []) {
+      if (
+        now >= (p.portalUntil ?? 0) &&
+        Math.hypot(p.x - pad.x, p.y - pad.y) < 23 &&
+        !blocked(pad.toX, pad.toY, 13, arena, r.brokenWalls)
+      ) {
+        p.x = pad.toX;
+        p.y = pad.toY;
+        p.portalUntil = now + 2000;
+        p.vx = p.vy = 0;
+        effect(r, "portal", p, now);
+        break;
+      }
+    }
+    for (const pickup of r.pickups ?? []) {
+      if (
+        now >= pickup.availableAt &&
+        Math.hypot(p.x - pickup.x, p.y - pickup.y) < 25
+      ) {
+        if (pickup.kind === "health" && p.hp === 100) continue;
+        if (pickup.kind === "health") p.hp = Math.min(100, p.hp + 35);
+        if (pickup.kind === "speed") p.speedUntil = now + 5000;
+        if (pickup.kind === "damage") p.damageUntil = now + 5000;
+        pickup.availableAt = now + 15000;
+        effect(r, "pickup", p, now);
+      }
+    }
+    const hazard = (arenas[arena].hazards ?? []).find(
+      (h) =>
+        (h.kind === "lava" || h.kind === "vent") &&
+        inside(p, h) &&
+        hazardActive(h, now),
+    );
+    if (hazard && now >= (p.environmentTick ?? 0)) {
+      p.environmentTick = now + 1000;
+      damage(r, p, hazard.damage ?? 5, 1 - p.team, "arena", now);
+    }
+    if (p.respawn) continue;
     r.crystals = r.crystals.filter((c) => {
       if (Math.hypot(c.x - p.x, c.y - p.y) < 26) {
         r.scores[p.team]++;
@@ -414,7 +670,28 @@ export function tick(r: Room, now: number, dt: number) {
     b.x += b.vx * dt;
     b.y += b.vy * dt;
     b.life -= dt;
-    if (b.life <= 0 || blocked(b.x, b.y, 4, arena)) return false;
+    if (b.life <= 0) return false;
+    const wallIndex = arenas[arena].walls.findIndex(
+      (w, i) =>
+        !r.brokenWalls?.includes(i) &&
+        b.x + 4 > w.x &&
+        b.x - 4 < w.x + w.w &&
+        b.y + 4 > w.y &&
+        b.y - 4 < w.y + w.h,
+    );
+    if (wallIndex >= 0) {
+      if (arenas[arena].walls[wallIndex].cracked) {
+        r.wallHits ??= {};
+        r.wallHits[wallIndex] = (r.wallHits[wallIndex] ?? 0) + 1;
+        if (r.wallHits[wallIndex] >= 3) {
+          r.brokenWalls ??= [];
+          r.brokenWalls.push(wallIndex);
+          effect(r, "break", { ...b, team: b.team }, now);
+        }
+      }
+      return false;
+    }
+    if (blocked(b.x, b.y, 4, arena, r.brokenWalls)) return false;
     for (const p of r.players) {
       if (
         p.team === b.team ||
@@ -423,16 +700,49 @@ export function tick(r: Room, now: number, dt: number) {
         Math.hypot(p.x - b.x, p.y - b.y) > 20
       )
         continue;
+      if (now < p.guard) {
+        b.vx = -b.vx;
+        b.vy = -b.vy;
+        b.owner = p.id;
+        b.team = p.team;
+        const n = Math.hypot(b.vx, b.vy) || 1;
+        b.x = p.x + (b.vx / n) * 28;
+        b.y = p.y + (b.vy / n) * 28;
+        effect(r, "reflect", p, now);
+        return true;
+      }
       damage(r, p, b.damage ?? 20, b.team, b.owner, now);
       return false;
     }
     return true;
   });
+  const bounds = playableBounds(r, now);
+  if (r.phase === "overtime")
+    for (const p of r.players) {
+      if (
+        p.online &&
+        !p.respawn &&
+        (p.x < bounds.x ||
+          p.x > W - bounds.x ||
+          p.y < bounds.y ||
+          p.y > H - bounds.y) &&
+        now >= (p.stormTick ?? 0)
+      ) {
+        p.stormTick = now + 1000;
+        damage(r, p, 25, 1 - p.team, "storm", now);
+      }
+    }
   if (mode === "crystal" && now >= r.nextCrystal) {
     r.nextCrystal = now + 3500;
     if (r.crystals.length < 5) {
-      const c = { x: 420 + Math.random() * 120, y: 210 + Math.random() * 180 };
-      if (!blocked(c.x, c.y, 20, arena)) r.crystals.push(c);
+      const points = arenas[arena].spawns;
+      r.spawnIndex = ((r.spawnIndex ?? 0) + 1) % points.length;
+      const c = { ...points[r.spawnIndex] };
+      if (
+        !blocked(c.x, c.y, 20, arena, r.brokenWalls) &&
+        !r.crystals.some((p) => p.x === c.x && p.y === c.y)
+      )
+        r.crystals.push(c);
     }
   }
   if (mode === "control") {
@@ -461,7 +771,123 @@ export function tick(r: Room, now: number, dt: number) {
   else if (now >= r.end) {
     if (r.phase === "playing" && r.scores[0] === r.scores[1]) {
       r.phase = "overtime";
+      r.overtimeStart = now;
       r.end = now + 30000;
     } else finish(r);
   }
+}
+
+export type PlayerView = Omit<Player, "input" | "lastInput"> & {
+  moving: boolean;
+  angle: number;
+  moveX: number;
+  moveY: number;
+  hidden: boolean;
+  inBush: boolean;
+};
+export type Snapshot = Omit<Room, "players" | "updated" | "emptySince"> & {
+  players: PlayerView[];
+  now: number;
+};
+export function snapshot(r: Room, now: number, viewerId?: string): Snapshot {
+  const viewer = r.players.find((p) => p.id === viewerId);
+  const { updated, emptySince, ...rest } = r;
+  return {
+    ...rest,
+    effects: r.effects?.filter(
+      (e) =>
+        now - e.at < 600 &&
+        (!viewer || viewer.team === e.team || !inBush(e, r.arena ?? "astral")),
+    ),
+    players: r.players.map(({ input, lastInput, ...p }) => ({
+      ...p,
+      hidden:
+        !!viewer && viewer.team !== p.team && inBush(p, r.arena ?? "astral"),
+      inBush: inBush(p, r.arena ?? "astral"),
+      x:
+        viewer && viewer.team !== p.team && inBush(p, r.arena ?? "astral")
+          ? -1000
+          : p.x,
+      y:
+        viewer && viewer.team !== p.team && inBush(p, r.arena ?? "astral")
+          ? -1000
+          : p.y,
+      moving: Math.hypot(input.x, input.y) > 0.1 || now < p.burst,
+      angle: input.angle,
+      moveX: now < p.burst ? (p.dashX ?? input.x) : input.x,
+      moveY: now < p.burst ? (p.dashY ?? input.y) : input.y,
+    })),
+    now,
+  };
+}
+export function removeExpiredPlayer(
+  r: Room,
+  id: string,
+  at: number | undefined,
+  sessions: Map<string, { code: string; id: string }>,
+) {
+  const p = r.players.find((p) => p.id === id);
+  if (!p || p.online || p.lastInput !== at) return false;
+  r.players = r.players.filter((p) => p.id !== id);
+  for (const [token, session] of sessions)
+    if (session.code === r.code && session.id === id) sessions.delete(token);
+  return true;
+}
+
+export function playableBounds(
+  r: Pick<Room, "phase" | "overtimeStart">,
+  now: number,
+) {
+  const step =
+    r.phase === "overtime"
+      ? Math.max(0, Math.floor((now - (r.overtimeStart ?? now)) / 5000))
+      : 0;
+  return { x: Math.min(360, step * 60), y: Math.min(210, step * 35) };
+}
+
+export function inside(
+  p: { x: number; y: number },
+  z: { x: number; y: number; w: number; h: number },
+) {
+  return p.x >= z.x && p.x <= z.x + z.w && p.y >= z.y && p.y <= z.y + z.h;
+}
+export function hazardActive(h: Zone, now: number) {
+  return h.kind !== "vent" || now % 4000 < 1500;
+}
+export function inBush(p: { x: number; y: number }, arena: ArenaId) {
+  return (arenas[arena].hazards ?? []).some(
+    (h) => h.kind === "bush" && inside(p, h),
+  );
+}
+export function movementVelocity(
+  p: {
+    x: number;
+    y: number;
+    burst: number;
+    dashX?: number;
+    dashY?: number;
+    speedUntil?: number;
+    vx?: number;
+    vy?: number;
+  },
+  a: Pick<Input, "x" | "y">,
+  now: number,
+  dt: number,
+  arena: ArenaId,
+) {
+  const n = Math.max(1, Math.hypot(a.x, a.y)),
+    speed = now < p.burst ? 650 : now < (p.speedUntil ?? 0) ? 245 : 175;
+  let x = (now < p.burst ? (p.dashX ?? a.x / n) : a.x / n) * speed,
+    y = (now < p.burst ? (p.dashY ?? a.y / n) : a.y / n) * speed;
+  if (
+    now >= p.burst &&
+    (arenas[arena].hazards ?? []).some((h) => h.kind === "ice" && inside(p, h))
+  ) {
+    const k = 1 - Math.exp(-dt * 3);
+    x = (p.vx ?? 0) + (x - (p.vx ?? 0)) * k;
+    y = (p.vy ?? 0) + (y - (p.vy ?? 0)) * k;
+  }
+  p.vx = x;
+  p.vy = y;
+  return { x, y };
 }

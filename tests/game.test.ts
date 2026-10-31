@@ -168,7 +168,7 @@ test("Mend caps health and does not spend cooldown at full health", () => {
   p.hp = 80;
   tick(r, 2010, 0.01);
   assert.equal(p.hp, 100);
-  assert.equal(p.special, 17010);
+  assert.equal(p.special, 14010);
   p.hp = 40;
   tick(r, 2020, 0.01);
   assert.equal(p.hp, 40);
