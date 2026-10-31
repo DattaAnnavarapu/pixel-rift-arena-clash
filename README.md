@@ -33,6 +33,17 @@ The weapon HUD shows magazine, fire cooldown and auto-reload time; buff readouts
 
 Validation: 93 automated tests (including the original 70), TypeScript/production build and production smoke checks. Physical-phone responsiveness, full two-human rounds and balance are manual acceptance checks. International testing remains outside this phase and is not marked fixed. No profiles, rankings, new maps or persistent progression are included yet.
 
+### Verify a deployed event candidate (read-only smoke check)
+
+After your Render deployment reports **Live**, run from a Node 24 checkout of the **same version**:
+
+```powershell
+npm ci
+npm run event:check -- https://YOUR-RENDER-SERVICE.onrender.com
+```
+
+The command validates `/health` (version, protocol 3, errors, tick time, room count, memory, server ID), `/api/status`, the built HTML and JavaScript bundle, and security/caching response headers. It then opens **two temporary Socket.IO sessions** in the same Crystal Clash Quick Play queue and confirms they join the same room and both receive the auto-started game. It exits non-zero and prints the failing check on any failure. It creates a short-lived public match on the deployed service: run it **before players arrive**, never during an event round. A sleeping Render instance may need to wake up first; this command allows 20 seconds for HTTP requests. It is not a real-phone, cross-country, load or audio test.
+
 ## Run the game from GitHub in VS Code (Windows)
 
 **Requirements:** [Git](https://git-scm.com/downloads), [Node.js 24](https://nodejs.org/en/download) (includes npm), and [Visual Studio Code](https://code.visualstudio.com/).
