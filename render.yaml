@@ -2,8 +2,11 @@ services:
   - type: web
     name: pixel-rift
     runtime: node
+    # Free instances sleep when idle; cold starts can delay the first connection.
     plan: free
-    buildCommand: npm ci && npm run build
+    region: ohio
+    numInstances: 1
+    buildCommand: npm ci --include=dev && npm run build
     startCommand: npm start
     healthCheckPath: /health
     envVars:

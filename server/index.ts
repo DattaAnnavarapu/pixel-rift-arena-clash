@@ -1,3 +1,12 @@
+import compression from "compression";
+import { performance } from "node:perf_hooks";
+import {
+  RateLimit,
+  record,
+  validEnter,
+  cleanInput,
+  installProcessLogging,
+} from "./robustness.js";
 import { isClass, isWeapon, maxHealth, weapons } from "./combat.js";
 import {
   findPublicRoom,
@@ -29,18 +38,26 @@ export async function createGameServer(
 ) {
   const instance = randomBytes(4).toString("hex");
   let closing = false;
+  const owners = new Map<string, string>(),
+    offlineSince = new Map<string, number>();
+  const metrics = { tickMs: 0, maxTickMs: 0, errors: 0, inputRejects: 0 };
+  const report = (kind: string, error: unknown) => {
+    metrics.errors++;
+    console.error(`[${instance}] ${kind}`, error);
+  };
   const cleanupTimers = new Set<ReturnType<typeof setTimeout>>();
   let vite: Awaited<ReturnType<typeof import("vite").createServer>> | undefined;
   const app = express(),
     http = createServer(app),
     io = new Server(http, {
-      maxHttpBufferSize: 4096,
+      maxHttpBufferSize: 100 * 1024,
       pingInterval: 10000,
       pingTimeout: 15000,
     });
   const rooms = new Map<string, Room>();
   const sessions = new Map<string, { code: string; id: string }>();
   app.disable("x-powered-by");
+  app.use(compression());
   app.use((_req, res, next) => {
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
@@ -49,6 +66,10 @@ export async function createGameServer(
   app.get("/health", (_, res) =>
     res.json({
       ok: !closing,
+      serverId: instance,
+      rooms: rooms.size,
+      memory: process.memoryUsage(),
+      ...metrics,
       instance,
       version: RELEASE_VERSION,
       protocol: PROTOCOL_VERSION,
@@ -78,30 +99,48 @@ export async function createGameServer(
     }
   }
   io.on("connection", (s) => {
+    const limits = new RateLimit();
+    const on = (event: string, handler: (...args: any[]) => void) =>
+      s.on(event, (...args: any[]) => {
+        try {
+          handler(...args);
+        } catch (error) {
+          report(`socket:${event}`, error);
+          const ack = args.at(-1);
+          if (typeof ack === "function")
+            ack({ error: "Request failed. Please retry." });
+        }
+      });
+
     s.emit("hello", {
       version: RELEASE_VERSION,
       protocol: PROTOCOL_VERSION,
       instance,
     });
-    s.on("ping-check", (ack) => {
-      if (typeof ack === "function" && ++count <= 100) ack({ now: Date.now() });
+    on("ping-check", (ack) => {
+      if (typeof ack === "function" && limits.allow("ping", 1, 5))
+        ack({ now: Date.now() });
     });
     let room: Room | undefined,
       id = "";
     let count = 0,
       joins = 0;
-    const rate = setInterval(() => {
-      count = 0;
-      joins = 0;
-    }, 1000);
-    s.on("enter", (data, ack) => {
+
+    on("enter", (data, ack) => {
       if (typeof ack !== "function") return;
-      if (++joins > 10)
+      if (!limits.allow("join", 1, 10))
         return ack({ error: "Too many join attempts. Try again shortly." });
       if (data?.protocol !== PROTOCOL_VERSION)
         return ack({
           error: "Game version changed. Reload this page to update.",
         });
+      if (data?.mode !== undefined && !validMode(data.mode))
+        return ack({ error: "Unknown mode" });
+      if (!validEnter(data)) return ack({ error: "Invalid join payload" });
+      if (data.create && !limits.allow("create", 0.2, 3))
+        return ack({ error: "Too many room creations" });
+      if (data.matchmake && !limits.allow("quick", 0.5, 5))
+        return ack({ error: "Too many Quick Play attempts" });
       if (room) return ack({ error: "Already in a room" });
       const name =
         String(data?.name || "")
@@ -117,7 +156,18 @@ export async function createGameServer(
       if (old) {
         const r = rooms.get(old.code),
           p = r?.players.find((p) => p.id === old.id);
-        if (r && p && !p.online) {
+        if (
+          r &&
+          p &&
+          (!offlineSince.has(p.id) ||
+            Date.now() - offlineSince.get(p.id)! <= 30000)
+        ) {
+          const previous = io.sockets.sockets.get(owners.get(p.id) ?? "");
+          if (previous && previous.id !== s.id) {
+            previous.data.superseded = true;
+            previous.disconnect(true);
+          }
+          offlineSince.delete(p.id);
           room = r;
           id = p.id;
           p.online = true;
@@ -187,6 +237,8 @@ export async function createGameServer(
       const joined = room.players.find((p) => p.id === id)!;
       if (room.publicMatch && room.phase === "lobby") joined.ready = true;
       joined.lastSequence = -1;
+      owners.set(id, s.id);
+      offlineSince.delete(id);
       s.data.playerId = id;
       s.join(room.code);
       if (!room.players.some((p) => p.id === room!.host && p.online))
@@ -196,8 +248,11 @@ export async function createGameServer(
       updateMatchmaking(room, Date.now());
       emit(room);
     });
-    s.on("leave", (ack) => {
+    on("leave", (ack) => {
+      if (!limits.allow("leave", 2, 4)) return;
       if (room) {
+        owners.delete(id);
+        offlineSince.delete(id);
         const oldRoom = room;
         s.leave(oldRoom.code);
         removePlayer(oldRoom, id, sessions);
@@ -209,8 +264,13 @@ export async function createGameServer(
       }
       if (typeof ack === "function") ack({ ok: true });
     });
-    s.on("lobby", (a) => {
-      if (!room || ++count > 60 || !["lobby", "finished"].includes(room.phase))
+    on("lobby", (a) => {
+      if (
+        !record(a) ||
+        !room ||
+        !limits.allow("lobby", 30, 60) ||
+        !["lobby", "finished"].includes(room.phase)
+      )
         return;
       const p = room.players.find((p) => p.id === id);
       if (!p) return;
@@ -221,7 +281,7 @@ export async function createGameServer(
         typeof a?.loadout === "string" &&
         Object.hasOwn(loadouts, a.loadout)
       ) {
-        p.loadout = a.loadout;
+        p.loadout = a.loadout as keyof typeof loadouts;
         // Public entrants are already queued; selecting a kit must not unqueue them.
         if (!room.publicMatch) p.ready = false;
       }
@@ -246,7 +306,7 @@ export async function createGameServer(
         }
       }
       if (typeof a?.ready === "boolean") p.ready = a.ready;
-      if (a?.start && room.host === id) {
+      if (a?.start === true && room.host === id) {
         const ps = room.players.filter((x) => x.online);
         if (
           ps.length >= 2 &&
@@ -258,26 +318,29 @@ export async function createGameServer(
       }
       emit(room);
     });
-    s.on("input", (a) => {
-      if (!room || ++count > 100) return;
-      const p = room.players.find((p) => p.id === id);
-      if (!p || !a || ![a.x, a.y, a.angle].every(Number.isFinite)) return;
-      if (!validSequence(a.sequence, p.lastSequence ?? -1)) return;
-      if (a.sequence !== undefined) p.lastSequence = a.sequence;
+    on("input", (a) => {
+      if (!room || !limits.allow("input", 100, 150)) {
+        metrics.inputRejects++;
+        return;
+      }
+      const p = room.players.find((p) => p.id === id),
+        input = cleanInput(a);
+      if (
+        !p ||
+        !input ||
+        !validSequence(input.sequence, p.lastSequence ?? -1)
+      ) {
+        metrics.inputRejects++;
+        return;
+      }
+      if (input.sequence !== undefined) p.lastSequence = input.sequence;
       p.lastInput = Date.now();
-      p.input = {
-        x: Math.max(-1, Math.min(1, a.x)),
-        y: Math.max(-1, Math.min(1, a.y)),
-        angle: a.angle,
-        fire: !!a.fire,
-        dash: !!a.dash,
-        shield: !!a.shield,
-        special: !!a.special,
-      };
+      p.input = input;
     });
-    s.on("disconnect", () => {
-      clearInterval(rate);
-      if (!room || closing) return;
+    on("disconnect", () => {
+      if (!room || closing || s.data.superseded || owners.get(id) !== s.id)
+        return;
+      offlineSince.set(id, Date.now());
       const p = room.players.find((p) => p.id === id);
       if (p) {
         p.online = false;
@@ -293,7 +356,14 @@ export async function createGameServer(
         disconnectedAt = p?.lastInput;
       const timeout = setTimeout(() => {
         cleanupTimers.delete(timeout);
-        if (removeExpiredPlayer(r, id, disconnectedAt, sessions)) emit(r);
+        if (
+          owners.get(id) === s.id &&
+          removeExpiredPlayer(r, id, disconnectedAt, sessions)
+        ) {
+          owners.delete(id);
+          offlineSince.delete(id);
+          emit(r);
+        }
       }, 30000);
       cleanupTimers.add(timeout);
     });
@@ -301,25 +371,48 @@ export async function createGameServer(
   let last = Date.now(),
     frames = 0;
   const loop = setInterval(() => {
+    const started = performance.now();
     const now = Date.now(),
       dt = Math.min((now - last) / 1000, 0.06);
     last = now;
     frames++;
     for (const [code, r] of rooms) {
-      updateMatchmaking(r, now);
-      tick(r, now, dt);
-      if (frames % 2 === 0) emit(r);
+      try {
+        updateMatchmaking(r, now);
+        tick(r, now, dt);
+        if (frames % 2 === 0) emit(r);
+      } catch (error) {
+        report(`room:${code}`, error);
+      }
       if (
         r.players.every((p) => p.bot || !p.online) &&
         now - r.updated > 600000
       ) {
         rooms.delete(code);
+        for (const p of r.players) {
+          owners.delete(p.id);
+          offlineSince.delete(p.id);
+        }
         for (const [t, s] of sessions) if (s.code === code) sessions.delete(t);
       }
     }
+    metrics.tickMs = performance.now() - started;
+    metrics.maxTickMs = Math.max(metrics.maxTickMs, metrics.tickMs);
   }, 1000 / 30);
   if (options.serveClient !== false) {
-    if (process.env.NODE_ENV === "production") app.use(express.static("dist"));
+    if (process.env.NODE_ENV === "production")
+      app.use(
+        express.static("dist", {
+          setHeaders(res, path) {
+            if (/[/\\]assets[/\\].+-[A-Za-z0-9_-]+\.(js|css)$/.test(path))
+              res.setHeader(
+                "Cache-Control",
+                "public, max-age=31536000, immutable",
+              );
+            else res.setHeader("Cache-Control", "no-cache");
+          },
+        }),
+      );
     else {
       const { createServer } = await import("vite");
       vite = await createServer({
@@ -366,6 +459,7 @@ if (
   process.argv[1] &&
   pathToFileURL(process.argv[1]).href === import.meta.url
 ) {
+  installProcessLogging();
   const game = await createGameServer();
   console.log(
     `Pixel Rift listening on ${game.url.replace("127.0.0.1", "localhost")}`,

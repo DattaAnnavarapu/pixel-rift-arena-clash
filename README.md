@@ -78,8 +78,8 @@ Open the game in two or more browser tabs/windows. Create a room, copy the six-c
 ### Update your local checkout
 
 ```powershell
-git switch feature/release-ready
-git pull origin feature/release-ready
+git switch feature/v1.2-phase1-combat
+git pull origin feature/v1.2-phase1-combat
 npm ci
 npm run dev
 ```
@@ -178,7 +178,7 @@ $env:NODE_ENV = "production"
 npm start
 ```
 
-`render.yaml` configures a single Node web service, `npm ci && npm run build`, `npm start`, `NODE_ENV=production`, and `/health`. Render supplies PORT. The checked-in source does not include generated `dist/`; deployment builds it. Reset NODE_ENV or open a new terminal before returning to development mode.
+`render.yaml` configures a single Node web service, `npm ci --include=dev && npm run build`, `npm start`, `NODE_ENV=production`, and `/health`. Render supplies PORT. The checked-in source does not include generated `dist/`; deployment builds it. Reset NODE_ENV or open a new terminal before returning to development mode.
 
 The existing Render service tracks `main`. This feature branch is for review and is **not automatically deployed to production**. Merge only after approval. After deploying, verify `/health`, join from independent devices, and test a cold start. Free hosting may sleep. Do not split client/backend without adding a configurable socket origin and explicit CORS handling.
 
@@ -206,3 +206,6 @@ Phone matches use a compact HUD and a separate touch-control area. Portrait plac
 Local movement, weapon aim and a cosmetic muzzle flash react immediately. Damage, projectiles and abilities remain server-authoritative and still wait for network transit. High RTT cannot be eliminated by prediction. The match toolbar shows RTT; lobbies show a per-process server identifier. All players must use the exact same deployed URL and mode. There is no country filter in matchmaking. If public lobbies differ, compare server IDs, modes and whether an earlier lobby already started. Different server IDs indicate separate processes or a restart; rooms currently live in one process and are not shared across replicas.
 
 Connections start with HTTP polling and attempt WebSocket upgrade. Polling-only multiplayer is covered by a network regression. In-match snapshots and inputs avoid an unbounded stale backlog; pending action taps are not drained while the transport is unwritable. This is connection hardening, not verification that the reported cross-country failure is resolved. Record both server IDs, room codes, RTT, countries and visible errors for the next public retest.
+
+### Stabilization Phase 1
+Socket exception boundaries, separate token buckets, bounded payloads, atomic reconnect takeover, health tick/memory/room diagnostics, HTTP compression and immutable hashed-asset caching. Protocol remains 3. Render is explicitly one Ohio instance; free-plan cold starts remain a manual check. Uncaught error logging keeps the process alive but cannot certify state integrity; health error counters require operator review.

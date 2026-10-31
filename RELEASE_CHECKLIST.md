@@ -75,3 +75,7 @@ Manual acceptance before deployment/release:
 - Try all nine class/weapon combinations, including close-range shotgun and long-range rifle, with shields and damage pickups. Tune balance from playtests; automated correctness is not a fairness certification.
 - Check class silhouettes, weapon tones, shield absorption feedback and reduced-motion/particles settings. Assess supported-phone frame rates.
 - Deploy only after review/approval; stale protocol-2 tabs must reload. No international matchmaking claim or full v1.2 release approval follows from this phase.
+
+## Stabilization Phase 1 manual checks
+- [ ] Cold-start on the free Render plan; review health tick/memory/errors under expected traffic.
+- [ ] Refresh/take over a session during an active match; confirm the superseded tab disconnects and the new player remains online past the old cleanup timer.
