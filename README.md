@@ -2,36 +2,88 @@
 
 A 2–4-player, no-login team arena game built with React 19, Phaser 3, TypeScript, Node.js, Express and Socket.IO. One process serves both the client and the authoritative game server.
 
-## Run on Windows in VS Code
+## Run the game from GitHub in VS Code (Windows)
 
-Install Node.js 24. Open the project folder containing `package.json`, then use the VS Code PowerShell terminal:
+**Requirements:** [Git](https://git-scm.com/downloads), [Node.js 24](https://nodejs.org/en/download) (includes npm), and [Visual Studio Code](https://code.visualstudio.com/).
+
+1. Open **VS Code → Terminal → New Terminal** (PowerShell).
+2. Clone the repository and enter its folder:
 
 ```powershell
-npm ci
-npm run dev
+git clone https://github.com/DattaAnnavarapu/pixel-rift-arena-clash.git
+cd pixel-rift-arena-clash
+code .
 ```
 
-Open **http://localhost:3000**. Keep the terminal running. On subsequent runs you only need `npm run dev`. The frontend and multiplayer backend start together; no second server or Vite command is needed. Use separate browser tabs as players. Friends on the same LAN can use the host computer's IP and port 3000 if the firewall permits it.
-
-To test this feature branch:
+3. **Switch to the improved version** (the changes are in the feature branch until the pull request is merged):
 
 ```powershell
 git fetch origin
 git switch feature/game-enhancements
+```
+
+4. Check that Node.js and npm work, then install dependencies:
+
+```powershell
+node -v
+npm -v
+npm ci
+```
+
+5. Start the game:
+
+```powershell
+npm run dev
+```
+
+6. Visit **http://localhost:3000** in your browser. Keep the VS Code terminal open while playing. **One command starts both the React/Phaser frontend and the Socket.IO multiplayer server**—you do not need a second terminal.
+
+To stop, press **Ctrl+C** in the terminal. On later runs, open the project folder and run `npm run dev` again; there is no need to clone or reinstall each time.
+
+### Play multiplayer locally
+
+Open the game in two or more browser tabs/windows. Create a room, copy the six-character code or invitation URL, and join from the other tabs. Each player picks a team/loadout and marks ready; the host starts once both teams have players and everyone is ready. For other devices on the **same Wi-Fi**, use `http://YOUR-PC-LAN-IP:3000` (find the IPv4 address with `ipconfig`); Windows Firewall must permit incoming connections. For internet play, use a deployed server instead—`localhost` is only your own computer.
+
+### Update your local checkout
+
+```powershell
+git switch feature/game-enhancements
+git pull origin feature/game-enhancements
 npm ci
 npm run dev
 ```
 
+### Troubleshooting
+
+- **`git` / `node` / `npm` not recognized:** install Git or Node.js, then restart VS Code.
+- **`ENOENT ... package.json`:** open the cloned `pixel-rift-arena-clash` directory (not its parent). Run `dir package.json` to confirm.
+- **Port 3000 already in use:** stop the previous running server with Ctrl+C, then retry.
+- **Room won't connect:** confirm `npm run dev` is still running and visit the URL printed in the terminal. Other devices cannot connect using `localhost`.
+- **PowerShell blocks `npm.ps1`:** use `npm.cmd ci` and `npm.cmd run dev` instead.
+
+### Check your changes
+
+```powershell
+npm test
+npm run build
+```
+
 ## What's new
 
-- Three arenas with shared server/client collision geometry: **Astral Keep**, **Verdant Ruins**, **Ember Forge**.
+- Four arenas with shared server/client level data: **Astral Keep**, **Verdant Ruins**, **Ember Forge**, and **Frost Bridge**.
 - Layered pixel knights with walking animation, directional weapons, textured terrain, floating crystals and ambient particles.
 - Projectile trails, hit flashes, damage numbers, KO bursts, dash trails, shield rings, healing and spawn effects. Camera shake respects reduced-motion preferences.
 - Redesigned main menu, map previews, host arena/mode controls, team/player cards, readiness, loadouts, results and invite feedback.
-- **Nova**: three 15-damage bolts with an eight-second cooldown. **Mend**: restore up to 30 HP with a 15-second cooldown, consumed only when healing. Choose one in the lobby; use **Q** or the touch special button.
+- **Nova**: three 15-damage bolts with an eight-second cooldown. **Mend**: restore up to 30 HP with a 12-second cooldown, consumed only when healing. **Blink** teleports up to 120px toward aim, stopping at walls (10s cooldown). Choose one in the lobby; use **Q** or the touch special button.
 - Original synthesized chiptune music and distinct combat sounds. Independent SFX/music toggles persist locally. Audio starts after a user gesture; music defaults off and pauses while the tab is hidden.
 - Mobile MOVE/AIM sticks, four combat buttons, pointer-cancel recovery and landscape control layout.
-- Separate renderer/audio/runtime modules; reusable server factory for real Socket.IO integration tests.
+- Local movement prediction with gentle server correction; capped bolt extrapolation, firing feedback, kill feed, Tab/touch scoreboard and teammate spectating on respawn.
+- Reflective shields and aim-directed stationary dashes; hosts can fill/remove explicitly labeled bots for solo practice. Bots count as active team members and keep their ready status through lobby setting changes.
+- Procedural lava/vents, portals, concealing bushes, destructible walls, mirrored flank crystals, pickups and slippery ice (see Levels below).
+- Match forfeits when one team has zero online players for 15 seconds. Both teams absent for the grace period is a draw. Normal room cleanup remains separate.
+- Pooled combat effects; 600ms snapshot effects; animation fields replace full player inputs. Expired player tokens are removed. Express 4 types align with Express 4, tsx is a production dependency, and npm start uses a production-only entrypoint without Vite.
+- Original 32-note (two-section) music loop: 230ms steps normally, 165ms in overtime or once a team reaches 80% of the score target. One master gain/compressor protects the mix; hits/KOs fade with distance.
+- Browser-local wins, KOs and most-played loadout persist across refreshes. They are convenience stats, not competitive records. Match/player IDs prevent reconnect double-counting; clearing browser storage resets them.
 
 ## Modes
 
@@ -41,19 +93,40 @@ npm run dev
 | Knockout      | Knockouts +3; no crystals                                                                     | 15     |
 | Rift Control  | Occupy the center without an opponent; +1 per second. KOs clear the zone but award no points. | 40     |
 
-All matches last three minutes unless a team reaches the target first. A tie triggers 30 seconds of sudden death: the next score that creates a lead wins. Still tied after overtime is a draw. Players respawn after three seconds with 1.5 seconds of protection. No friendly fire.
+All matches last three minutes unless a team reaches the target first. A tie triggers 30 seconds of sudden death: the next score that creates a lead wins. Overtime bounds shrink every five seconds by 60px horizontally and 35px vertically per side (capped at 360/210px). Outside deals 25 HP each second, subject to shield/spawn protection. Still tied after overtime is a draw. Players respawn after three seconds with 1.5 seconds of protection. No friendly fire.
 
 ## Controls and lobby
 
-WASD/arrows move, mouse aims, hold click to fire (20 damage per bolt, 0.5s interval), Space dashes (five-second cooldown), E shields for 1.5 seconds (12-second cooldown), Q uses Nova/Mend. Touch devices have MOVE/AIM sticks plus FIRE/DASH/SHIELD/special buttons; landscape is recommended.
+WASD/arrows move, mouse aims, hold click to fire (20 damage per bolt, 0.5s interval), Space dashes (five-second cooldown), E shields for 1.5 seconds (12-second cooldown), Q uses Nova/Mend/Blink. Shields reflect bolts with ownership transferred to the defender; a reflected bolt can be reflected again. Touch devices have MOVE/AIM sticks plus FIRE/DASH/SHIELD/special buttons; landscape is recommended.
+
+| Action     | Desktop                                              | Mobile              |
+| ---------- | ---------------------------------------------------- | ------------------- |
+| Move / aim | WASD or arrows / mouse                               | MOVE / AIM sticks   |
+| Fire       | Hold click                                           | FIRE                |
+| Dash       | Space · 5s, 180ms burst; aim direction if stationary | DASH                |
+| Shield     | E · 1.5s duration, 12s cooldown, reflects bolts      | SHIELD              |
+| Special    | Q · Nova 8s, Mend 12s, Blink 10s                     | NOVA / MEND / BLINK |
+| Scoreboard | Hold Tab                                             | SCORES button       |
+| Practice   | Host: FILL WITH BOTS / REMOVE BOTS                   | Same lobby buttons  |
 
 Create a six-character room code or join an invitation URL. Up to two players per team; 2-vs-1 is allowed with a warning. The host chooses the arena and mode. Changing either clears everyone's ready status. Each player chooses a loadout and marks ready; the host starts when all connected players are ready and each team has someone. Results allow a new ready check and rematch. No accounts or installs.
 
+## Levels
+
+| Arena         | Interactions                                                                                                                                                                                |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Astral Keep   | Glowing paired portals at opposite sides; automatic transport with a 2s per-player cooldown.                                                                                                |
+| Ember Forge   | Lava strips: 5 HP/second. Vents: 10 HP/second while active for the first 1.5s of a 4s cycle.                                                                                                |
+| Verdant Ruins | Bushes hide enemies and render allies/self at half opacity; enemy coordinates and bush effects are redacted from snapshots. Cracked walls break after three bolt hits and reset each match. |
+| Frost Bridge  | Mirrored narrow lanes and ice: velocity approaches desired input at rate 3/s, allowing coasting and slower turns.                                                                           |
+
+Crystal Clash cycles through shared mirrored spawn points, including flanks, at the existing 3.5s interval (max five). Risky pickup locations are shared data: green health restores 35 HP (not consumed at full health), blue speed boosts movement from 175 to 245px/s for 5s, gold double damage lasts 5s. Pickups respawn 15s after collection. Boosts end on respawn; all terrain state resets on rematch. Hazard deaths award the opposing team the usual KO points outside Rift Control. Bots use simple steering, target crystals/center, aim with error, and do not detect enemies hiding in bushes.
+
 ## Multiplayer architecture
 
-The server simulates at 30Hz and broadcasts snapshots at 15Hz. Clients send bounded movement/action inputs. The server calculates collisions, cooldowns, hits, healing, health, respawns, objectives and match results. Rendering smooths authoritative positions. Short-lived event IDs drive effects/audio without duplicate playback. Input older than 500ms is cleared.
+The server simulates at 30Hz and broadcasts snapshots at 15Hz. Clients send bounded movement/action inputs. The server calculates collisions, cooldowns, hits, healing, health, respawns, objectives and match results. Remote rendering smooths authoritative positions. Local movement predicts with shared collisions and corrects toward server state; projectile extrapolation is capped at 100ms. Prediction never awards damage, scores or pickups. Short-lived event IDs drive effects/audio without duplicate playback. Input older than 500ms is cleared.
 
-Reconnect tokens are random per-tab sessionStorage values; nicknames and audio preferences use localStorage. Disconnected slots remain for 30 seconds. Hosts migrate to connected players, and a returning player can become host when everyone else is offline. Empty rooms expire after ten minutes. Rooms and tokens live in memory: restarts/deployments end matches. Run a single instance. Multi-instance scaling requires shared room ownership/routing, not just a Socket.IO adapter. Room codes are join conveniences, not access-security boundaries.
+Reconnect tokens are random per-tab sessionStorage values; nicknames and audio preferences use localStorage. Disconnected slots remain for 30 seconds. Hosts migrate to connected players, and a returning player can become host when everyone else is offline. Rooms with no connected humans expire after ten minutes, even if bots remain. Rooms and tokens live in memory: restarts/deployments end matches. Run a single instance. Multi-instance scaling requires shared room ownership/routing, not just a Socket.IO adapter. Room codes are join conveniences, not access-security boundaries.
 
 ## Build and deploy
 
@@ -74,8 +147,8 @@ npm test
 npm run build
 ```
 
-The suite includes 15 simulation tests plus one real network integration test. The network test starts a disposable in-process server and uses actual Socket.IO clients: four-player capacity, full-room rejection, readiness, host-only settings, shared map/mode, movement validation, room isolation, loadout preservation on reconnect and host migration. No skipped tests in the default run. Set TEST_URL only to test a disposable external deployment instead.
+The suite includes regression tests for all new gameplay systems plus a real multi-client network integration test. The network test starts a disposable in-process server and uses actual Socket.IO clients: four-player capacity, full-room rejection, readiness, host-only settings, shared map/mode, movement validation, room isolation, loadout preservation on reconnect and host migration. No skipped tests in the default run. Set TEST_URL only to test a disposable external deployment instead.
 
-Browser QA on this branch: redesigned menu/lobby; four players joining and readying; arena/mode and loadout selection; Ember Forge Knockout launch; Nova and shield cooldown response; refresh resume. Physical iOS/Android touch testing, perceptual audio quality and public-host latency remain manual checks before merging. A large Phaser bundle warning remains informational; the production build succeeds.
+Browser QA includes the earlier four-client flow plus single-human Frost Bridge launch with three labeled bots, live combat, kill feed, scoreboard and teammate spectating. A production-only dependency install served /health and the built client successfully. Physical iOS/Android touch testing, perceptual audio quality and public-host latency remain manual checks before merging. Bots use local steering rather than full pathfinding, and prediction is lightweight reconciliation rather than input-history rollback. A large Phaser bundle warning remains informational; the production build succeeds.
 
 All game art and audio are generated procedurally in code. No downloaded asset packs or recordings are required.

@@ -1,5 +1,5 @@
-import type { Room, Input } from "../server/game";
-export type Snapshot = Room & { now: number };
+import type { Snapshot, Input } from "../server/game";
+export type { Snapshot };
 export let state: Snapshot | null = null,
   me = "",
   offset = 0;
@@ -14,6 +14,7 @@ export const input: Input = {
 };
 export const touch = {
   move: false,
+  aim: false,
   dash: false,
   shield: false,
   special: false,

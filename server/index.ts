@@ -1,8 +1,17 @@
+import { manageBots } from "./bots.js";
 import express from "express";
 import { createServer } from "node:http";
 import { randomBytes, randomUUID } from "node:crypto";
 import { Server } from "socket.io";
-import { player, start, tick, configure, type Room } from "./game.js";
+import {
+  player,
+  start,
+  tick,
+  configure,
+  snapshot,
+  removeExpiredPlayer,
+  type Room,
+} from "./game.js";
 import { pathToFileURL } from "node:url";
 export async function createGameServer(
   options: { port?: number; serveClient?: boolean } = {},
@@ -17,8 +26,10 @@ export async function createGameServer(
   const sessions = new Map<string, { code: string; id: string }>();
   app.get("/health", (_, res) => res.json({ ok: true, rooms: rooms.size }));
   function emit(r: Room) {
-    const { updated, ...state } = r;
-    io.to(r.code).emit("state", { ...state, now: Date.now() });
+    for (const sid of io.sockets.adapter.rooms.get(r.code) ?? []) {
+      const socket = io.sockets.sockets.get(sid);
+      socket?.emit("state", snapshot(r, Date.now(), socket.data.playerId));
+    }
   }
   io.on("connection", (s) => {
     let room: Room | undefined,
@@ -96,6 +107,7 @@ export async function createGameServer(
         token = randomBytes(24).toString("hex");
         sessions.set(token, { code: room.code, id });
       }
+      s.data.playerId = id;
       s.join(room.code);
       if (!room.players.some((p) => p.id === room!.host && p.online))
         room.host = id;
@@ -109,7 +121,12 @@ export async function createGameServer(
       const p = room.players.find((p) => p.id === id);
       if (!p) return;
       configure(room, id, a ?? {});
-      if (a?.loadout === "nova" || a?.loadout === "mend") {
+      if (typeof a?.bots === "boolean") manageBots(room, id, a.bots);
+      if (
+        a?.loadout === "nova" ||
+        a?.loadout === "mend" ||
+        a?.loadout === "blink"
+      ) {
         p.loadout = a.loadout;
         p.ready = false;
       }
@@ -161,18 +178,14 @@ export async function createGameServer(
         p.input.x = p.input.y = 0;
       }
       if (room.host === id)
-        room.host = room.players.find((p) => p.online)?.id || id;
+        room.host = room.players.find((p) => p.online && !p.bot)?.id || id;
       room.updated = Date.now();
       emit(room);
       const r = room,
         disconnectedAt = p?.lastInput;
       const timeout = setTimeout(() => {
         cleanupTimers.delete(timeout);
-        const p = r.players.find((p) => p.id === id);
-        if (p && !p.online && p.lastInput === disconnectedAt) {
-          r.players = r.players.filter((x) => x.id !== id);
-          emit(r);
-        }
+        if (removeExpiredPlayer(r, id, disconnectedAt, sessions)) emit(r);
       }, 30000);
       cleanupTimers.add(timeout);
     });
@@ -187,7 +200,10 @@ export async function createGameServer(
     for (const [code, r] of rooms) {
       tick(r, now, dt);
       if (frames % 2 === 0) emit(r);
-      if (r.players.every((p) => !p.online) && now - r.updated > 600000) {
+      if (
+        r.players.every((p) => p.bot || !p.online) &&
+        now - r.updated > 600000
+      ) {
         rooms.delete(code);
         for (const [t, s] of sessions) if (s.code === code) sessions.delete(t);
       }

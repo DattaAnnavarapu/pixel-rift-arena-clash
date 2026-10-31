@@ -22,7 +22,9 @@ import {
   setMusic,
   effectsEnabled,
   musicEnabled,
+  updateMusic,
 } from "./audio";
+import { readProgress, updateProgress, favorite } from "./progress";
 import "./style.css";
 const socket = io({ autoConnect: false, transports: ["websocket", "polling"] });
 function Stick({ aim = false }: { aim?: boolean }) {
@@ -38,8 +40,10 @@ function Stick({ aim = false }: { aim?: boolean }) {
       x = (e.clientX - r.left - r.width / 2) / (r.width / 2),
       y = (e.clientY - r.top - r.height / 2) / (r.height / 2),
       n = Math.max(1, Math.hypot(x, y));
-    if (aim) input.angle = Math.atan2(y, x);
-    else {
+    if (aim) {
+      touch.aim = true;
+      input.angle = Math.atan2(y, x);
+    } else {
       touch.move = true;
       input.x = x / n;
       input.y = y / n;
@@ -55,6 +59,7 @@ function Stick({ aim = false }: { aim?: boolean }) {
       aria-label={aim ? "Aim joystick" : "Movement joystick"}
       onPointerDown={(e) => {
         unlock();
+        if (e.pointerType === "touch") touch.aim = true;
         e.currentTarget.setPointerCapture(e.pointerId);
         move(e);
       }}
@@ -149,6 +154,48 @@ function ArenaPreview({ arena = "astral" }: { arena?: ArenaId }) {
         stroke={`#${a.accent.toString(16)}`}
         strokeOpacity=".3"
       />
+      {a.hazards?.map((h, i) => (
+        <rect
+          key={`zone${i}`}
+          x={h.x / 3}
+          y={h.y / 3}
+          width={h.w / 3}
+          height={h.h / 3}
+          fill={
+            h.kind === "ice"
+              ? "#a5eaff44"
+              : h.kind === "bush"
+                ? "#63ad6f66"
+                : "#ff884455"
+          }
+        />
+      ))}
+      {a.pads?.map((p, i) => (
+        <circle
+          key={`pad${i}`}
+          cx={p.x / 3}
+          cy={p.y / 3}
+          r="7"
+          fill="none"
+          stroke="#bca7ff"
+        />
+      ))}
+      {a.pickups?.map((p, i) => (
+        <rect
+          key={`item${i}`}
+          x={p.x / 3 - 2}
+          y={p.y / 3 - 2}
+          width="4"
+          height="4"
+          fill={
+            p.kind === "health"
+              ? "#8dffba"
+              : p.kind === "speed"
+                ? "#8ddeff"
+                : "#ffd475"
+          }
+        />
+      ))}
       {a.walls.map((w, i) => (
         <g key={i}>
           <rect
@@ -201,6 +248,10 @@ function App() {
     [sfx, setSfx] = useState(effectsEnabled),
     [music, setMusicState] = useState(musicEnabled),
     [help, setHelp] = useState(false);
+  const [progress, setProgress] = useState(() =>
+    readProgress(localStorage.getItem("rift-progress")),
+  );
+  const [scoreboard, setScoreboard] = useState(false);
   const mount = useRef<HTMLDivElement>(null),
     nameRef = useRef(name);
   nameRef.current = name;
@@ -253,6 +304,19 @@ function App() {
     };
     const snapshot = (r: Snapshot) => {
       if (state?.phase !== "finished" && r.phase === "finished") sound("win");
+      updateMusic(r);
+      try {
+        const next = updateProgress(
+          readProgress(localStorage.getItem("rift-progress")),
+          r,
+          me,
+        );
+        const encoded = JSON.stringify(next);
+        if (encoded !== localStorage.getItem("rift-progress")) {
+          localStorage.setItem("rift-progress", encoded);
+          setProgress(next);
+        }
+      } catch {}
       receive(r);
       setS(r);
     };
@@ -271,6 +335,21 @@ function App() {
         socket.emit("input", input);
     }, 33);
     const blur = () => resetInput();
+    const tabDown = (e: KeyboardEvent) => {
+      if (
+        e.key === "Tab" &&
+        state &&
+        ["playing", "overtime"].includes(state.phase)
+      ) {
+        e.preventDefault();
+        setScoreboard(true);
+      }
+    };
+    const tabUp = (e: KeyboardEvent) => {
+      if (e.key === "Tab") setScoreboard(false);
+    };
+    window.addEventListener("keydown", tabDown);
+    window.addEventListener("keyup", tabUp);
     window.addEventListener("blur", blur);
     const visibility = () => {
       if (document.hidden) resetInput();
@@ -283,6 +362,8 @@ function App() {
       socket.off("state", snapshot);
       socket.disconnect();
       window.removeEventListener("blur", blur);
+      window.removeEventListener("keydown", tabDown);
+      window.removeEventListener("keyup", tabUp);
       document.removeEventListener("visibilitychange", visibility);
     };
   }, []);
@@ -380,6 +461,17 @@ function App() {
                 One arena. Two teams. Your next <br className="desktop-break" />
                 “one more round” starts here.
               </p>
+              <div className="saved-stats">
+                <span>
+                  <b>{progress.wins}</b> WINS
+                </span>
+                <span>
+                  <b>{progress.kos}</b> KOs
+                </span>
+                <span>
+                  <b>{favorite(progress)}</b> FAVORITE KIT
+                </span>
+              </div>
               <div className="hero-tags">
                 <span>NO LOGIN</span>
                 <span>PHONE + DESKTOP</span>
@@ -534,7 +626,10 @@ function App() {
                   <div
                     className={`result-banner ${s.winner === "Crimson" ? "red" : "blue"}`}
                   >
-                    <span>✦ MATCH COMPLETE</span>
+                    <span>
+                      ✦ MATCH COMPLETE{" "}
+                      {s.finishReason === "forfeit" ? " · FORFEIT" : ""}
+                    </span>
                     <h2>
                       {s.winner === "Draw"
                         ? "A perfect tie."
@@ -549,6 +644,22 @@ function App() {
                   <span className="eyebrow">PLAYERS</span>
                   <small>{s.players.length} / 4 CONNECTED SLOTS</small>
                 </div>
+                {host && (
+                  <div className="bot-controls">
+                    <button
+                      onClick={() => configure({ bots: true })}
+                      disabled={s.players.length >= 4}
+                    >
+                      FILL WITH BOTS
+                    </button>
+                    <button
+                      onClick={() => configure({ bots: false })}
+                      disabled={!s.players.some((p) => p.bot)}
+                    >
+                      REMOVE BOTS
+                    </button>
+                  </div>
+                )}
                 <div className="teams">
                   {[0, 1].map((t) => (
                     <div key={t} className={`team team-${t}`}>
@@ -568,12 +679,16 @@ function App() {
                             <div className={`pixel-avatar avatar-${t}`} />
                             <div>
                               <b>
-                                {p.name}
+                                {p.name} {p.bot ? "[BOT]" : ""}
                                 {p.id === id ? " (YOU)" : ""}{" "}
                                 {p.id === s.host ? "♛" : ""}
                               </b>
                               <small>
-                                {p.loadout === "mend" ? "✚ MEND" : "✦ NOVA"}
+                                {p.loadout === "mend"
+                                  ? "✚ MEND"
+                                  : p.loadout === "blink"
+                                    ? "◇ BLINK"
+                                    : "✦ NOVA"}
                                 {s.phase === "finished"
                                   ? ` · ${p.kills} K / ${p.deaths} D`
                                   : ""}
@@ -628,7 +743,15 @@ function App() {
                       onClick={() => configure({ loadout: "mend" })}
                     >
                       <b>✚ MEND</b>
-                      <small>Restore 30 HP · 15s cooldown</small>
+                      <small>Restore 30 HP · 12s cooldown</small>
+                    </button>
+                    <button
+                      aria-pressed={self?.loadout === "blink"}
+                      className={self?.loadout === "blink" ? "selected" : ""}
+                      onClick={() => configure({ loadout: "blink" })}
+                    >
+                      <b>◇ BLINK</b>
+                      <small>Teleport up to 120px · 10s cooldown</small>
                     </button>
                   </div>
                 </div>
@@ -697,6 +820,49 @@ function App() {
           )}
           <div className={`arenaWrap ${lobby ? "lobby-arena" : ""}`}>
             <div className="arena" ref={mount} />
+            {!lobby && (
+              <>
+                <div className="kill-feed">
+                  {s.feed?.map((f) => (
+                    <div key={f.id} className={f.team === 0 ? "red" : "blue"}>
+                      {f.killer} ▸ {f.victim}
+                    </div>
+                  ))}
+                </div>
+                <button
+                  className="scores-toggle"
+                  onClick={() => setScoreboard(!scoreboard)}
+                >
+                  SCORES · TAB
+                </button>
+                {scoreboard && (
+                  <div className="scoreboard">
+                    <h3>MATCH SCOREBOARD</h3>
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>PLAYER</th>
+                          <th>KOs</th>
+                          <th>DEATHS</th>
+                          <th>CRYSTALS</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {s.players.map((p) => (
+                          <tr key={p.id} className={p.team ? "blue" : "red"}>
+                            <td>{p.name}</td>
+                            <td>{p.kills}</td>
+                            <td>{p.deaths}</td>
+                            <td>{p.collected}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </>
+            )}
+
             {!online && (
               <div className="connection">
                 Connection lost. Rejoining automatically…
@@ -705,6 +871,22 @@ function App() {
             {self?.respawn && !lobby ? (
               <div className="respawn">
                 <span>RIFT RECALL</span>
+                <small>
+                  {(() => {
+                    const ally = s.players
+                      .filter(
+                        (p) => p.team === self.team && p.online && !p.respawn,
+                      )
+                      .sort(
+                        (a, b) =>
+                          Math.hypot(a.x - self.x, a.y - self.y) -
+                          Math.hypot(b.x - self.x, b.y - self.y),
+                      )[0];
+                    return ally
+                      ? `SPECTATING ${ally.name}`
+                      : "Waiting for a teammate";
+                  })()}
+                </small>
                 <b>{Math.max(1, Math.ceil((self.respawn - time) / 1000))}</b>
                 <small>Back in the fight in a moment.</small>
               </div>
@@ -712,6 +894,14 @@ function App() {
           </div>
           {!lobby && (
             <>
+              <div className="boosts">
+                {self && self.speedUntil! > time
+                  ? `SPEED ${Math.ceil((self.speedUntil! - time) / 1000)}s · `
+                  : ""}
+                {self && self.damageUntil! > time
+                  ? `DOUBLE DAMAGE ${Math.ceil((self.damageUntil! - time) / 1000)}s`
+                  : ""}
+              </div>
               <div className="abilities">
                 <div className="health">
                   <small>VITALITY</small>
@@ -732,10 +922,20 @@ function App() {
                     cd: 12000,
                   },
                   {
-                    name: self?.loadout === "mend" ? "MEND" : "NOVA",
+                    name:
+                      self?.loadout === "mend"
+                        ? "MEND"
+                        : self?.loadout === "blink"
+                          ? "BLINK"
+                          : "NOVA",
                     key: "Q",
                     at: self?.special ?? 0,
-                    cd: self?.loadout === "mend" ? 15000 : 8000,
+                    cd:
+                      self?.loadout === "mend"
+                        ? 12000
+                        : self?.loadout === "blink"
+                          ? 10000
+                          : 8000,
                   },
                 ].map((a) => (
                   <div
@@ -778,7 +978,13 @@ function App() {
                     <TouchButton action="shield" label="SHIELD" />
                     <TouchButton
                       action="special"
-                      label={self?.loadout === "mend" ? "MEND" : "NOVA"}
+                      label={
+                        self?.loadout === "mend"
+                          ? "MEND"
+                          : self?.loadout === "blink"
+                            ? "BLINK"
+                            : "NOVA"
+                      }
                     />
                   </div>
                 </div>
@@ -813,8 +1019,9 @@ function App() {
           <div>
             <h3>01 / Squad up</h3>
             <p>
-              Create a room or join with its code. Pick a team and Nova or Mend.
-              Everyone marks ready; the host launches. No accounts, no installs.
+              Create a room or join with its code. Pick a team and Nova, Mend or
+              Blink. Everyone marks ready; the host launches. No accounts, no
+              installs.
             </p>
           </div>
           <div>
@@ -822,8 +1029,9 @@ function App() {
             <p>
               Move with WASD/arrows, aim with mouse, hold click to fire. Space
               dashes (5s); E shields for 1.5s (12s). Q fires three 15-damage
-              Nova bolts (8s) or heals 30 HP with Mend (15s). Basic bolts deal
-              20 damage. No friendly fire.
+              Nova bolts (8s), heals 30 HP with Mend (12s), or Blinks up to
+              120px toward aim without crossing walls (10s). Shields reflect
+              bolts. Basic bolts deal 20 damage. No friendly fire.
             </p>
           </div>
           <div>
@@ -832,7 +1040,9 @@ function App() {
               Crystal Clash: crystals +1, KOs +3, target 20. Knockout: KOs +3,
               target 15. Rift Control: hold center uncontested for +1 per
               second, target 40. Highest score at 3 minutes wins; ties get
-              30-second sudden death. Still tied? Draw. Respawn in 3 seconds.
+              30-second sudden death with a shrinking boundary every 5s (25
+              damage/second outside). A team absent for 15 seconds forfeits.
+              Still tied? Draw. Respawn in 3 seconds.
             </p>
           </div>
           <div>
