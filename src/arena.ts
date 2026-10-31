@@ -18,11 +18,13 @@ import {
   resetInput,
   queueAction,
   sentInputs,
+  snapshots,
 } from "./runtime";
 import {
   advancePosition,
   replayPosition,
   boltPosition,
+  cosmeticBoltPosition,
   type PredictedPosition,
 } from "./prediction";
 import { sound } from "./audio";
@@ -37,6 +39,20 @@ export default class Arena extends Phaser.Scene {
   playerGraphics = new Map<string, Phaser.GameObjects.Graphics>();
   labels = new Map<string, Phaser.GameObjects.Text>();
   positions = new Map<string, PredictedPosition>();
+  cosmeticBolts: {
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    life: number;
+    shotId: number;
+    at: number;
+  }[] = [];
+  nextShot = 0;
+  predictedDashUntil = 0;
+  predictedShieldUntil = 0;
+  nextDashVisual = 0;
+  nextShieldVisual = 0;
   localShotAt = 0;
   localMuzzleUntil = 0;
   predictionSnapshot: typeof state = null;
@@ -503,6 +519,21 @@ export default class Arena extends Phaser.Scene {
     this.cameras.main.setBounds(0, 0, 960, 600);
     this.cameras.main.setZoom(ally && !this.reduced ? 1.15 : 1);
     this.cameras.main.centerOn(ally?.x ?? 480, ally?.y ?? 300);
+    this.cosmeticBolts = this.cosmeticBolts.filter(
+      (b) =>
+        Date.now() - b.at < Math.min(b.life * 1000, 800) &&
+        !state!.bolts.some((s) => s.owner === me && s.shotId === b.shotId),
+    );
+    for (const b of this.cosmeticBolts) {
+      const p = cosmeticBoltPosition(
+        b,
+        (Date.now() - b.at) / 1000,
+        state.arena ?? "astral",
+        state.brokenWalls,
+      );
+      g.fillStyle(0xfff0b0, 0.7);
+      g.fillCircle(p.x, p.y, 3);
+    }
     for (const bolt of state.bolts) {
       const b = {
         ...bolt,
@@ -595,8 +626,9 @@ export default class Arena extends Phaser.Scene {
           }
         }
       } else {
-        pos.x += (p.x - pos.x) * smoothing;
-        pos.y += (p.y - pos.y) * smoothing;
+        const target = snapshots.position(p.id, now) ?? p;
+        pos.x += (target.x - pos.x) * smoothing;
+        pos.y += (target.y - pos.y) * smoothing;
       }
       this.positions.set(p.id, pos);
       if (p.id === me && !touch.aim && !this.input.activePointer.wasTouch) {
@@ -666,6 +698,19 @@ export default class Arena extends Phaser.Scene {
         now >= p.reloadAt &&
         Date.now() >= this.localShotAt
       ) {
+        const shotId = ++this.nextShot;
+        input.shotId = shotId;
+        const weapon = weapons[p.weaponId];
+        for (const spread of weapon.spread)
+          this.cosmeticBolts.push({
+            x,
+            y,
+            vx: Math.cos(angle + spread) * weapon.speed,
+            vy: Math.sin(angle + spread) * weapon.speed,
+            life: weapon.life,
+            shotId,
+            at: Date.now(),
+          });
         this.localShotAt = Date.now() + weapons[p.weaponId].interval;
         this.localMuzzleUntil = Date.now() + 70;
       }
@@ -690,6 +735,28 @@ export default class Arena extends Phaser.Scene {
       g.lineBetween(x + Math.cos(angle) * 12, y + Math.sin(angle) * 12, gx, gy);
       g.fillStyle(c);
       g.fillRect(gx - 3, gy - 3, 6, 6);
+      if (p.id === me && !uiPaused) {
+        if (input.dash && now >= p.dash && Date.now() >= this.nextDashVisual) {
+          this.predictedDashUntil = Date.now() + 180;
+          this.nextDashVisual = Date.now() + 5000;
+        }
+        if (
+          input.shield &&
+          now >= p.shield &&
+          Date.now() >= this.nextShieldVisual
+        ) {
+          this.predictedShieldUntil = Date.now() + 1500;
+          this.nextShieldVisual = Date.now() + 12000;
+        }
+        if (Date.now() < this.predictedShieldUntil) {
+          g.lineStyle(2, 0xc8bbff, 0.5);
+          g.strokeCircle(x, y, 28);
+        }
+        if (Date.now() < this.predictedDashUntil && !this.reduced) {
+          g.lineStyle(3, c, 0.4);
+          g.lineBetween(x, y, x - input.x * 30, y - input.y * 30);
+        }
+      }
       if (p.absorption > 0 && p.absorptionUntil > now) {
         g.lineStyle(2, 0x9af0ff, 0.65);
         g.strokeCircle(x, y, 31);

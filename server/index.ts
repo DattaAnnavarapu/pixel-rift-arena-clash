@@ -1,3 +1,4 @@
+import { FaultLink } from "./network.js";
 import compression from "compression";
 import { performance } from "node:perf_hooks";
 import {
@@ -36,6 +37,7 @@ import { pathToFileURL } from "node:url";
 export async function createGameServer(
   options: { port?: number; serveClient?: boolean } = {},
 ) {
+  const faults = new FaultLink();
   const instance = randomBytes(4).toString("hex");
   let closing = false;
   const owners = new Map<string, string>(),
@@ -52,7 +54,8 @@ export async function createGameServer(
     io = new Server(http, {
       maxHttpBufferSize: 100 * 1024,
       pingInterval: 10000,
-      pingTimeout: 15000,
+      pingTimeout: 25000,
+      perMessageDeflate: false,
     });
   const rooms = new Map<string, Room>();
   const sessions = new Map<string, { code: string; id: string }>();
@@ -95,7 +98,12 @@ export async function createGameServer(
       const target = ["playing", "overtime"].includes(r.phase)
         ? socket.volatile
         : socket;
-      target.emit("state", snapshot(r, Date.now(), socket.data.playerId));
+      const view = structuredClone(
+        snapshot(r, Date.now(), socket.data.playerId),
+      );
+      faults.send(() => {
+        if (socket.connected) target.emit("state", view);
+      }, ["playing", "overtime"].includes(r.phase));
     }
   }
   io.on("connection", (s) => {
@@ -103,7 +111,20 @@ export async function createGameServer(
     const on = (event: string, handler: (...args: any[]) => void) =>
       s.on(event, (...args: any[]) => {
         try {
-          handler(...args);
+          const delayed = args.map((arg) =>
+            typeof arg === "function"
+              ? (...reply: any[]) => faults.send(() => arg(...reply))
+              : arg,
+          );
+          if (event === "disconnect") handler(...delayed);
+          else
+            faults.send(() => {
+              try {
+                if (s.connected) handler(...delayed);
+              } catch (error) {
+                report(`delayed:${event}`, error);
+              }
+            }, event === "input");
         } catch (error) {
           report(`socket:${event}`, error);
           const ack = args.at(-1);
@@ -121,6 +142,25 @@ export async function createGameServer(
       if (typeof ack === "function" && limits.allow("ping", 1, 5))
         ack({ now: Date.now() });
     });
+    const probe = () =>
+      faults.send(() => {
+        if (!s.connected) return;
+        const at = Date.now();
+        s.timeout(5000).emit("probe", (err: unknown) =>
+          faults.send(() => {
+            if (!err) {
+              s.data.rtt = Math.max(
+                0,
+                Math.min(2000, Date.now() - at + faults.profile.latency),
+              );
+              const p = room?.players.find((p) => p.id === id);
+              if (p) p.rtt = s.data.rtt;
+            }
+          }),
+        );
+      });
+    const probeTimer = setInterval(probe, 2500);
+    probe();
     let room: Room | undefined,
       id = "";
     let count = 0,
@@ -189,7 +229,8 @@ export async function createGameServer(
       if (!room) {
         const quick = data?.matchmake === true;
         const chosenMode = validMode(data?.mode) ? data.mode : "crystal";
-        if (quick) room = findPublicRoom(rooms.values(), chosenMode);
+        if (quick)
+          room = findPublicRoom(rooms.values(), chosenMode, s.data.rtt);
         let code = String(data?.code || "").toUpperCase();
         if (!room && (data?.create || quick)) {
           do {
@@ -237,6 +278,7 @@ export async function createGameServer(
       const joined = room.players.find((p) => p.id === id)!;
       if (room.publicMatch && room.phase === "lobby") joined.ready = true;
       joined.lastSequence = -1;
+      joined.rtt = s.data.rtt;
       owners.set(id, s.id);
       offlineSince.delete(id);
       s.data.playerId = id;
@@ -323,21 +365,43 @@ export async function createGameServer(
         metrics.inputRejects++;
         return;
       }
-      const p = room.players.find((p) => p.id === id),
-        input = cleanInput(a);
+      const p = room.players.find((p) => p.id === id);
+      if (!p) return;
       if (
-        !p ||
-        !input ||
-        !validSequence(input.sequence, p.lastSequence ?? -1)
+        a?.history !== undefined &&
+        (!Array.isArray(a.history) || a.history.length > 3)
       ) {
         metrics.inputRejects++;
         return;
       }
-      if (input.sequence !== undefined) p.lastSequence = input.sequence;
+      const batch = [...(a?.history ?? []), a].map(cleanInput);
+      if (batch.some((i) => !i)) {
+        metrics.inputRejects++;
+        return;
+      }
+      const actions = {
+        fire: false,
+        dash: false,
+        shield: false,
+        special: false,
+      };
+      let latest: ReturnType<typeof cleanInput>;
+      for (const input of batch
+        .filter(Boolean)
+        .sort((a, b) => (a!.sequence ?? 0) - (b!.sequence ?? 0))) {
+        if (!validSequence(input!.sequence, p.lastSequence ?? -1)) continue;
+        if (input!.sequence !== undefined) p.lastSequence = input!.sequence;
+        for (const key of ["fire", "dash", "shield", "special"] as const)
+          actions[key] ||= !!input![key];
+        latest = input;
+      }
+      if (!latest) return;
       p.lastInput = Date.now();
-      p.input = input;
+      p.input = { ...latest, ...actions };
+      p.shieldBackdate = Math.min(150, (p.rtt ?? 0) / 2);
     });
     on("disconnect", () => {
+      clearInterval(probeTimer);
       if (!room || closing || s.data.superseded || owners.get(id) !== s.id)
         return;
       offlineSince.set(id, Date.now());
@@ -449,6 +513,7 @@ export async function createGameServer(
         message: "Server is updating. Rooms reset; please reconnect shortly.",
       });
       clearInterval(loop);
+      faults.close();
       for (const timer of cleanupTimers) clearTimeout(timer);
       await new Promise<void>((resolve) => io.close(() => resolve()));
       await vite?.close();

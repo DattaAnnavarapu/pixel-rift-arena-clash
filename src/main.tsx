@@ -49,7 +49,7 @@ import { joystickVector } from "./joystick";
 import "./style.css";
 const socket = io({
   autoConnect: false,
-  transports: ["polling", "websocket"],
+  transports: ["websocket", "polling"],
   tryAllTransports: true,
   reconnectionDelay: 500,
   reconnectionDelayMax: 4000,
@@ -398,6 +398,10 @@ function App() {
       setNotice(r.message);
       resetInput();
     };
+    const probe = (ack: () => void) => {
+      if (typeof ack === "function") ack();
+    };
+    socket.on("probe", probe);
     socket.on("hello", hello);
     socket.on("server-closing", serverClosing);
     const disconnected = () => {
@@ -490,6 +494,7 @@ function App() {
     return () => {
       clearInterval(timer);
       clearInterval(ping);
+      socket.off("probe", probe);
       socket.off("hello", hello);
       socket.off("server-closing", serverClosing);
       socket.off("connect", connected);
@@ -989,6 +994,9 @@ function App() {
                               </b>
                               <small>
                                 {`${classes[p.classId].name} · ${weapons[p.weaponId].name} · ${loadouts[p.loadout].name}`}
+                                {p.rtt !== undefined
+                                  ? ` · ${p.rtt}ms${p.rtt > 250 ? " HIGH PING" : ""}`
+                                  : ""}
                                 {s.phase === "finished"
                                   ? ` · ${p.kills} K / ${p.deaths} D`
                                   : ""}

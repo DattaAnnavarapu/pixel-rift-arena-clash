@@ -1,7 +1,11 @@
 import { modes, start, type ModeId, type Room } from "./game.js";
 export const PROTOCOL_VERSION = 3;
 export const RELEASE_VERSION = "1.2.0-alpha.1";
-export function findPublicRoom(rooms: Iterable<Room>, mode: ModeId) {
+export function findPublicRoom(
+  rooms: Iterable<Room>,
+  mode: ModeId,
+  rtt?: number,
+) {
   return [...rooms]
     .filter(
       (r) =>
@@ -11,9 +15,20 @@ export function findPublicRoom(rooms: Iterable<Room>, mode: ModeId) {
         r.players.length < 4 &&
         r.players.some((p) => p.online && !p.bot),
     )
-    .sort(
-      (a, b) => b.players.length - a.players.length || a.updated - b.updated,
-    )[0];
+    .sort((a, b) => {
+      const ping = (r: Room) =>
+        r.players
+          .filter((p) => p.online && !p.bot)
+          .reduce((n, p) => n + (p.rtt ?? rtt ?? 0), 0) /
+        Math.max(1, r.players.filter((p) => p.online && !p.bot).length);
+      return (
+        (rtt === undefined
+          ? 0
+          : Math.abs(ping(a) - rtt) - Math.abs(ping(b) - rtt)) ||
+        b.players.length - a.players.length ||
+        a.updated - b.updated
+      );
+    })[0];
 }
 export function updateMatchmaking(r: Room, now: number) {
   if (!r.publicMatch || r.phase !== "lobby") return;

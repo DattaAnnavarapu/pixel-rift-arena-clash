@@ -158,3 +158,25 @@ export function replayPosition(
   }
   return pos;
 }
+
+/** Cosmetic only: no player collision, damage, score or pickup mutation. */
+export function cosmeticBoltPosition(
+  b: { x: number; y: number; vx: number; vy: number; life: number },
+  age: number,
+  arena: ArenaId,
+  broken: readonly number[] = [],
+) {
+  const p = { x: b.x, y: b.y };
+  const end = Math.min(Math.max(0, age), b.life, 0.8);
+  for (let t = 0; t < end; t += 0.02)
+    movePosition(
+      p,
+      b.vx,
+      b.vy,
+      Math.hypot(b.vx, b.vy),
+      Math.min(0.02, end - t),
+      arena,
+      broken,
+    );
+  return p;
+}

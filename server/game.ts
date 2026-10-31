@@ -255,6 +255,8 @@ export type Input = {
   shield: boolean;
   special?: boolean;
   sequence?: number;
+  shotId?: number;
+  history?: Input[];
 };
 export type Player = {
   id: string;
@@ -283,6 +285,10 @@ export type Player = {
   absorption: number;
   absorptionUntil: number;
   lastSequence?: number;
+  rtt?: number;
+  lastShotId?: number;
+  shieldBackdate?: number;
+  guardStart?: number;
   bot?: boolean;
   stormTick?: number;
   portalUntil?: number;
@@ -342,6 +348,8 @@ export type Room = {
     life: number;
     damage?: number;
     weaponId?: WeaponId;
+    shotId?: number;
+    catchup?: number;
   }[];
   crystals: { x: number; y: number }[];
   nextCrystal: number;
@@ -519,6 +527,8 @@ export function start(r: Room, now: number) {
       respawn: 0,
       immune: now + 1500,
       shot: 0,
+      lastShotId: undefined,
+      guardStart: 0,
       dash: 0,
       burst: 0,
       shield: 0,
@@ -665,6 +675,7 @@ export function tick(r: Room, now: number, dt: number) {
     if (a.shield && now >= p.shield) {
       p.shield = now + 12000;
       p.guard = now + 1500;
+      p.guardStart = now - Math.min(150, p.shieldBackdate ?? 0);
       effect(r, "shield", p, now);
     }
     const motion = movementVelocity(p, a, now, dt, arena);
@@ -691,8 +702,17 @@ export function tick(r: Room, now: number, dt: number) {
         life,
         damage: outgoingDamage(p, damage, now),
         weaponId,
+        shotId: weaponId ? a.shotId : undefined,
+        catchup: weaponId ? Math.min(0.2, (p.rtt ?? 0) / 2000) : undefined,
       });
-    if (a.fire && now >= p.shot && !p.reloadAt && p.ammo > 0) {
+    if (
+      a.fire &&
+      now >= p.shot &&
+      !p.reloadAt &&
+      p.ammo > 0 &&
+      (a.shotId === undefined || a.shotId !== p.lastShotId)
+    ) {
+      p.lastShotId = a.shotId;
       p.shot = now + weapon.interval;
       p.ammo--;
       for (const spread of weapon.spread)
@@ -833,7 +853,9 @@ export function tick(r: Room, now: number, dt: number) {
   }
   r.bolts = r.bolts.filter((b) => {
     if (b.life <= 0) return false;
-    const travelTime = Math.min(dt, b.life);
+    const elapsed = dt + Math.min(0.2, b.catchup ?? 0);
+    b.catchup = undefined;
+    const travelTime = Math.min(elapsed, b.life);
     const steps = Math.max(
       1,
       Math.ceil((Math.hypot(b.vx, b.vy) * travelTime) / 8),
@@ -879,14 +901,14 @@ export function tick(r: Room, now: number, dt: number) {
           b.x = p.x + (b.vx / n) * 28;
           b.y = p.y + (b.vy / n) * 28;
           effect(r, "reflect", p, now);
-          b.life -= dt;
+          b.life -= elapsed;
           return b.life > 0;
         }
         damage(r, p, b.damage ?? 20, b.team, b.owner, now);
         return false;
       }
     }
-    b.life -= dt;
+    b.life -= elapsed;
     return b.life > 0;
   });
   const bounds = playableBounds(r, now);

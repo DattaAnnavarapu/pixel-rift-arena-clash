@@ -8,7 +8,8 @@
     "build": "tsc --noEmit && vite build",
     "start": "node --import tsx server/start.ts",
     "test": "node --import tsx --test tests/*.test.ts",
-    "release:check": "npm test && npm run build && node --import tsx scripts/production-smoke.ts"
+    "release:check": "npm test && npm run build && node --import tsx scripts/production-smoke.ts",
+    "test:high-ping": "node --import tsx scripts/high-ping-smoke.ts"
   },
   "dependencies": {
     "compression": "^1.8.2",

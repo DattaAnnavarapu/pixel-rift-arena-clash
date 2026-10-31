@@ -40,7 +40,13 @@ export function cleanInput(a: unknown): Input | undefined {
     )
   )
     return;
+  if (
+    a.shotId !== undefined &&
+    (!Number.isSafeInteger(a.shotId) || a.shotId < 0)
+  )
+    return;
   return {
+    shotId: a.shotId,
     x: Math.max(-1, Math.min(1, a.x)),
     y: Math.max(-1, Math.min(1, a.y)),
     angle: Math.atan2(Math.sin(a.angle), Math.cos(a.angle)),

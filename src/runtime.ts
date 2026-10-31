@@ -1,3 +1,5 @@
+import { SnapshotBuffer } from "./netcode";
+export const snapshots = new SnapshotBuffer();
 import type { Snapshot, Input } from "../server/game";
 import type { SentInput } from "./prediction";
 export const sentInputs: SentInput[] = [];
@@ -32,6 +34,8 @@ export function identify(id: string) {
 }
 export function receive(r: Snapshot | null) {
   state = r;
+  if (r) snapshots.push(r);
+  else snapshots.frames = [];
   if (r) offset = r.now - Date.now() + roundTrip / 2;
 }
 export function resetInput() {
@@ -74,5 +78,8 @@ export function inputPacket(sequence: number, at = Date.now()) {
     (sentInputs[0] && at - sentInputs[0].at > 1500)
   )
     sentInputs.shift();
-  return packet;
+  return {
+    ...packet,
+    history: sentInputs.slice(-3, -1).map((c) => ({ ...c.input })),
+  };
 }

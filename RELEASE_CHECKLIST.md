@@ -79,3 +79,7 @@ Manual acceptance before deployment/release:
 ## Stabilization Phase 1 manual checks
 - [ ] Cold-start on the free Render plan; review health tick/memory/errors under expected traffic.
 - [ ] Refresh/take over a session during an active match; confirm the superseded tab disconnects and the new player remains online past the old cleanup timer.
+
+## Stabilization Phase 2 manual checks
+- [ ] Evaluate aiming/movement/projectile correction on physical devices at 350–450ms RTT; inspect shield late-packet behavior (no retroactive damage rollback).
+- [ ] Run the full-match latency script with 2, 3 and 4 players, plus polling-only. Compare per-player RTT and same-server matching. Region probing remains disabled.

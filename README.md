@@ -209,3 +209,11 @@ Connections start with HTTP polling and attempt WebSocket upgrade. Polling-only 
 
 ### Stabilization Phase 1
 Socket exception boundaries, separate token buckets, bounded payloads, atomic reconnect takeover, health tick/memory/room diagnostics, HTTP compression and immutable hashed-asset caching. Protocol remains 3. Render is explicitly one Ohio instance; free-plan cold starts remain a manual check. Uncaught error logging keeps the process alive but cannot certify state integrity; health error counters require operator review.
+
+### Stabilization Phase 2 — latency tools
+
+`npm run test:high-ping` runs four real clients through a full Blitz match using 200ms simulated one-way delay (400ms RTT), 30ms jitter and 3% volatile-message loss. Set PLAYERS=2/3/4 to vary clients. SIM_LATENCY_MS is one-way delay; SIM_JITTER_MS and SIM_LOSS are bounded. Production forcibly disables all injection. Control/ack messages are delayed but not dropped; only volatile inputs/states lose messages. This is local fault testing, not international/load certification.
+
+Optional protocol-3 shot IDs reconcile cosmetic bolts with authoritative shots; projectile catch-up is capped at 200ms. Remote snapshot interpolation adapts to spacing/jitter (100–250ms), packets repeat two previous inputs, and server-measured RTT informs lobby warnings and queue preference. Legacy protocol-3 clients may omit these fields. WebSocket-first transport retains polling fallback and regression coverage. Region probing is an opt-in helper with no configured endpoints and no default requests.
+
+Dash/shield predictions are visual only. Shield activation records a capped 150ms backdated start, but does not rewind damage or scores already committed; full historical shield rollback remains unresolved and must not be advertised as implemented.
