@@ -1,3 +1,4 @@
+import type { BotLevel } from "./bot-config.js";
 import {
   weapons,
   pickups,
@@ -290,6 +291,7 @@ export type Player = {
   shieldBackdate?: number;
   guardStart?: number;
   bot?: boolean;
+  botLevel?: BotLevel;
   stormTick?: number;
   portalUntil?: number;
   environmentTick?: number;
@@ -364,6 +366,8 @@ export type Room = {
   finishReason?: string;
   matchId?: string;
   publicMatch?: boolean;
+  botLevel?: BotLevel;
+  botSeed?: number;
   startsAt?: number;
   overtimeStart?: number;
   brokenWalls?: number[];

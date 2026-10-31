@@ -25,3 +25,9 @@ Baseline: 70 tests, 1.2.0-alpha.1, protocol 3. New wire fields remain optional. 
 2. Changes: 800/1500/1500ms Blaster/Shotgun/rifle cadence, 720px/s rifle at unchanged 704px range; rifle-only full-health one-shot protection leaves 1HP. Damage values/multipliers remain unchanged. README defines the reference scenario.
 3. Tests: 82 tests, build and release checks pass. The original 70 remain unchanged. The matrix covers all nine attacker kits against an unshielded 100HP target, with/without attacker damage pickup; reloads count. Shield expiry/refresh/respawn/rematch tests remain enabled. The new Phase 2 dedupe test now waits beyond the tuned cadence.
 4. Risks: this is a substantial firing-rate reduction and needs a feel/balance playtest. The band is NOT a guarantee across all defender classes/shields/ranges/pellet misses; those cases are explicitly outside the reference assertion.
+
+## Phase 5 — Bot manager
+1. Findings: fixed steering/error lacked levels, reaction delays or routes around cover.
+2. Changes: one difficulty table, host whitelist/config UI, private training tier, varied hard kits, cached A* paths using shared collision, seeded decisions. Bots use ordinary gameplay rules. Adaptive and per-bot UI options are not enabled.
+3. Tests: 84 tests plus build/release pass. Twenty seeded runs per matchup: Hard/Normal 19–1; Normal/Easy 20–0; Hard/Easy 20–0. Whitelist/path safety tests pass. These are controlled same-class duels, not live-player statistics.
+4. Manual: path behavior on all terrain, perception of difficulty and live server CPU require checks. A* uses static wall occupancy, not tactical hazard avoidance.

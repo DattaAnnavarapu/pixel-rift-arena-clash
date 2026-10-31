@@ -1,3 +1,4 @@
+import { isBotLevel } from "./bot-config.js";
 import { FaultLink } from "./network.js";
 import compression from "compression";
 import { performance } from "node:perf_hooks";
@@ -317,6 +318,29 @@ export async function createGameServer(
       const p = room.players.find((p) => p.id === id);
       if (!p) return;
       if (!room.publicMatch) configure(room, id, a ?? {});
+      if (!room.publicMatch && room.host === id && isBotLevel(a.botLevel)) {
+        room.botLevel = a.botLevel;
+        let kit = 0;
+        for (const bot of room.players.filter((p) => p.bot)) {
+          bot.botLevel = a.botLevel;
+          if (a.botLevel === "hard") {
+            bot.classId = (["assault", "tank", "scout"] as const)[kit % 3];
+            bot.weaponId = (["blaster", "shotgun", "rifle"] as const)[kit % 3];
+            bot.loadout = (["nova", "mend", "pulse", "blink"] as const)[
+              kit % 4
+            ];
+            bot.hp = maxHealth(bot);
+            bot.ammo = weapons[bot.weaponId].magazine;
+            kit++;
+          }
+          if (a.botLevel === "easy") {
+            bot.classId = "assault";
+            bot.weaponId = "blaster";
+            bot.hp = maxHealth(bot);
+            bot.ammo = weapons.blaster.magazine;
+          }
+        }
+      }
       if (!room.publicMatch && typeof a?.bots === "boolean")
         manageBots(room, id, a.bots);
       if (

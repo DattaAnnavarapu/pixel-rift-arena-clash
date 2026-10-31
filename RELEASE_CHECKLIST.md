@@ -92,3 +92,6 @@ Manual acceptance before deployment/release:
 
 ## Stabilization Phase 4 manual checks
 - [ ] Evaluate the slower cadences and rifle one-shot protection with real players; compare all defender classes, range, shotgun pellet misses and shielding.
+
+## Stabilization Phase 5 manual checks
+- [ ] Host difficulty changes, all arenas/corner routes, broken walls, hidden enemies, bots vs humans and CPU/tick metrics with four bots. No general balance guarantee follows from seeded duels.

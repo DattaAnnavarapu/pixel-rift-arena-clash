@@ -997,6 +997,19 @@ function App() {
                 </div>
                 {host && !s.publicMatch && (
                   <div className="bot-controls">
+                    <label>
+                      BOT LEVEL{" "}
+                      <select
+                        value={s.botLevel ?? "normal"}
+                        onChange={(e) =>
+                          configure({ botLevel: e.target.value })
+                        }
+                      >
+                        <option value="easy">Easy</option>
+                        <option value="normal">Normal</option>
+                        <option value="hard">Hard</option>
+                      </select>
+                    </label>
                     <button
                       onClick={() => configure({ bots: true })}
                       disabled={s.players.length >= 4}
