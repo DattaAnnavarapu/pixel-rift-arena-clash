@@ -2,181 +2,51 @@ import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import Phaser from "phaser";
 import { io } from "socket.io-client";
-import { walls, type Room } from "../server/game";
+import { arenas, modes, type ArenaId, type ModeId } from "../server/game";
+import Arena from "./arena";
+import {
+  state,
+  me,
+  offset,
+  input,
+  touch,
+  identify,
+  receive,
+  resetInput,
+  type Snapshot,
+} from "./runtime";
+import {
+  unlock,
+  sound,
+  setEffects,
+  setMusic,
+  effectsEnabled,
+  musicEnabled,
+} from "./audio";
 import "./style.css";
-const socket = io({ transports: ["websocket", "polling"] });
-let state: (Room & { now: number }) | null = null,
-  me = "",
-  offset = 0;
-const input = { x: 0, y: 0, angle: 0, fire: false, dash: false, shield: false };
-let audio: AudioContext | undefined;
-let muted = false;
-function beep(freq = 500) {
-  if (muted) return;
-  try {
-    audio ??= new AudioContext();
-    const o = audio.createOscillator(),
-      g = audio.createGain();
-    o.type = "square";
-    o.frequency.value = freq;
-    g.gain.setValueAtTime(0.025, audio.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + 0.1);
-    o.connect(g);
-    g.connect(audio.destination);
-    o.start();
-    o.stop(audio.currentTime + 0.1);
-  } catch {}
-}
-class Arena extends Phaser.Scene {
-  g!: Phaser.GameObjects.Graphics;
-  labels: Phaser.GameObjects.Text[] = [];
-  keys: any;
-  positions = new Map<string, { x: number; y: number }>();
-  create() {
-    this.g = this.add.graphics();
-    this.keys = this.input.keyboard?.addKeys(
-      "W,A,S,D,UP,DOWN,LEFT,RIGHT,SPACE,E",
-    );
-    this.input.keyboard?.addCapture(["SPACE", "UP", "DOWN", "LEFT", "RIGHT"]);
-    this.input.on("pointermove", (p: Phaser.Input.Pointer) => {
-      if (!p.wasTouch && state) {
-        const self = state.players.find((p) => p.id === me);
-        if (self) input.angle = Math.atan2(p.y - self.y, p.x - self.x);
-      }
-    });
-    this.input.on("pointerdown", (p: Phaser.Input.Pointer) => {
-      if (!p.wasTouch) input.fire = true;
-    });
-    this.input.on("pointerup", (p: Phaser.Input.Pointer) => {
-      if (!p.wasTouch) input.fire = false;
-    });
-  }
-  update() {
-    if (!state) return;
-    const k = this.keys;
-    if (k) {
-      const x =
-          Number(k.D.isDown || k.RIGHT.isDown) -
-          Number(k.A.isDown || k.LEFT.isDown),
-        y =
-          Number(k.S.isDown || k.DOWN.isDown) -
-          Number(k.W.isDown || k.UP.isDown);
-      if (!touchMove) {
-        input.x = x;
-        input.y = y;
-      }
-      input.dash = k.SPACE.isDown || touchDash;
-      input.shield = k.E.isDown || touchShield;
-    }
-    const g = this.g;
-    g.clear();
-    g.fillStyle(0x161b30);
-    g.fillRect(0, 0, 960, 600);
-    g.lineStyle(1, 0x252b43);
-    for (let x = 0; x < 960; x += 32) g.lineBetween(x, 0, x, 600);
-    for (let y = 0; y < 600; y += 32) g.lineBetween(0, y, 960, y);
-    [0xff586e, 0x4db9ff].forEach((c, i) => {
-      g.fillStyle(c, 0.12);
-      g.fillRect(i ? 820 : 0, 180, 140, 240);
-      g.lineStyle(2, c, 0.45);
-      g.strokeRect(i ? 820 : 0, 180, 140, 240);
-    });
-    for (const w of walls) {
-      g.fillStyle(0x090e20);
-      g.fillRect(w.x, w.y + 8, w.w, w.h);
-      g.fillStyle(0x3e4968);
-      g.fillRect(w.x, w.y, w.w, w.h);
-      g.fillStyle(0x647091);
-      g.fillRect(w.x, w.y, w.w, 5);
-    }
-    for (const c of state.crystals) {
-      g.fillStyle(0xb394ff, 0.12);
-      g.fillCircle(c.x, c.y, 24);
-      g.fillStyle(0xc8a1ff);
-      g.fillTriangle(c.x, c.y - 12, c.x - 9, c.y, c.x + 9, c.y);
-      g.fillTriangle(c.x, c.y + 12, c.x - 9, c.y, c.x + 9, c.y);
-    }
-    for (const b of state.bolts) {
-      g.fillStyle(b.team ? 0x71d6ff : 0xff7d8d);
-      g.fillRect(b.x - 4, b.y - 4, 8, 8);
-    }
-    this.labels.forEach((t) => t.destroy());
-    this.labels = [];
-    const now = Date.now() + offset;
-    for (const p of state.players) {
-      if (p.respawn || !p.online) continue;
-      let pos = this.positions.get(p.id);
-      if (!pos || Math.hypot(pos.x - p.x, pos.y - p.y) > 160)
-        pos = { x: p.x, y: p.y };
-      pos.x += (p.x - pos.x) * 0.4;
-      pos.y += (p.y - pos.y) * 0.4;
-      this.positions.set(p.id, pos);
-      const { x, y } = pos,
-        c = p.team ? 0x4db9ff : 0xff586e;
-      g.fillStyle(0x000000, 0.3);
-      g.fillEllipse(x, y + 16, 32, 12);
-      g.fillStyle(c);
-      g.fillRect(x - 12, y - 10, 24, 26);
-      const step =
-        Math.hypot(p.input.x, p.input.y) > 0 ? Math.sin(now / 85) * 3 : 0;
-      g.fillStyle(0x262c48);
-      g.fillRect(x - 10, y + 13 + step, 7, 7);
-      g.fillRect(x + 3, y + 13 - step, 7, 7);
-      g.fillStyle(0xffdbb0);
-      g.fillRect(x - 8, y - 15, 16, 14);
-      g.fillStyle(0x182139);
-      g.fillRect(x - 5, y - 10, 3, 4);
-      g.fillRect(x + 3, y - 10, 3, 4);
-      g.fillStyle(0xe9efff);
-      g.fillRect(
-        x + Math.cos(p.input.angle) * 17 - 4,
-        y + Math.sin(p.input.angle) * 17 - 4,
-        8,
-        8,
-      );
-      if (p.guard > now || p.immune > now) {
-        g.lineStyle(2, p.guard > now ? 0xd4b5ff : 0xffffff, 0.8);
-        g.strokeCircle(x, y, 23);
-      }
-      if (p.id === me) {
-        g.lineStyle(2, 0xffffff, 0.6);
-        g.strokeRect(x - 16, y - 21, 32, 44);
-      }
-      g.fillStyle(0x080e1b);
-      g.fillRect(x - 18, y - 29, 36, 4);
-      g.fillStyle(c);
-      g.fillRect(x - 18, y - 29, (36 * p.hp) / 100, 4);
-      this.labels.push(
-        this.add
-          .text(x, y - 47, p.name, {
-            fontSize: "12px",
-            color: "#e8eeff",
-            fontFamily: "monospace",
-          })
-          .setOrigin(0.5),
-      );
-    }
-  }
-}
-let touchMove = false,
-  touchDash = false,
-  touchShield = false;
+const socket = io({ autoConnect: false, transports: ["websocket", "polling"] });
 function Stick({ aim = false }: { aim?: boolean }) {
+  function release(e: React.PointerEvent) {
+    if (!aim) {
+      touch.move = false;
+      input.x = input.y = 0;
+    }
+    e.currentTarget.removeAttribute("style");
+  }
   function move(e: React.PointerEvent) {
     const r = e.currentTarget.getBoundingClientRect(),
       x = (e.clientX - r.left - r.width / 2) / (r.width / 2),
       y = (e.clientY - r.top - r.height / 2) / (r.height / 2),
       n = Math.max(1, Math.hypot(x, y));
-    if (aim) {
-      input.angle = Math.atan2(y, x);
-    } else {
-      touchMove = true;
+    if (aim) input.angle = Math.atan2(y, x);
+    else {
+      touch.move = true;
       input.x = x / n;
       input.y = y / n;
     }
     e.currentTarget.setAttribute(
       "style",
-      `--sx:${(x / n) * 26}px;--sy:${(y / n) * 26}px`,
+      `--sx:${(x / n) * 24}px;--sy:${(y / n) * 24}px`,
     );
   }
   return (
@@ -184,307 +54,649 @@ function Stick({ aim = false }: { aim?: boolean }) {
       className="stick"
       aria-label={aim ? "Aim joystick" : "Movement joystick"}
       onPointerDown={(e) => {
+        unlock();
         e.currentTarget.setPointerCapture(e.pointerId);
         move(e);
       }}
       onPointerMove={(e) => {
         if (e.buttons) move(e);
       }}
-      onPointerUp={(e) => {
-        if (!aim) {
-          touchMove = false;
-          input.x = input.y = 0;
-        }
-        e.currentTarget.removeAttribute("style");
-      }}
-      onPointerCancel={() => {
-        touchMove = false;
-        input.x = input.y = 0;
-      }}
+      onPointerUp={release}
+      onPointerCancel={release}
+      onLostPointerCapture={release}
     >
       <i />
       <span>{aim ? "AIM" : "MOVE"}</span>
     </div>
   );
 }
+function TouchButton({
+  action,
+  label,
+}: {
+  action: "fire" | "dash" | "shield" | "special";
+  label: string;
+}) {
+  const down = (on: boolean) => {
+    if (action === "fire") input.fire = on;
+    else touch[action] = on;
+  };
+  return (
+    <button
+      className={`touch-${action}`}
+      onPointerDown={(e) => {
+        e.currentTarget.setPointerCapture(e.pointerId);
+        unlock();
+        down(true);
+      }}
+      onPointerUp={() => down(false)}
+      onPointerCancel={() => down(false)}
+      onLostPointerCapture={() => down(false)}
+    >
+      {label}
+    </button>
+  );
+}
+function ArenaPreview({ arena = "astral" }: { arena?: ArenaId }) {
+  const a = arenas[arena];
+  return (
+    <svg
+      className="map-preview"
+      viewBox="0 0 320 200"
+      aria-label={`${a.name} arena preview`}
+      role="img"
+    >
+      <defs>
+        <pattern
+          id={`tiles-${arena}`}
+          width="16"
+          height="16"
+          patternUnits="userSpaceOnUse"
+        >
+          <rect width="16" height="16" fill={`#${a.floor.toString(16)}`} />
+          <path
+            d="M16 0H0V16"
+            fill="none"
+            stroke={`#${a.tile.toString(16)}`}
+            strokeWidth="1"
+          />
+        </pattern>
+      </defs>
+      <rect width="320" height="200" fill={`url(#tiles-${arena})`} />
+      <rect
+        x="5"
+        y="62"
+        width="40"
+        height="76"
+        rx="3"
+        fill="#ff648022"
+        stroke="#ff648066"
+      />
+      <rect
+        x="275"
+        y="62"
+        width="40"
+        height="76"
+        rx="3"
+        fill="#60d5ff22"
+        stroke="#60d5ff66"
+      />
+      <circle
+        cx="160"
+        cy="100"
+        r="35"
+        fill="none"
+        stroke={`#${a.accent.toString(16)}`}
+        strokeOpacity=".3"
+      />
+      {a.walls.map((w, i) => (
+        <g key={i}>
+          <rect
+            x={w.x / 3 + 2}
+            y={w.y / 3 + 3}
+            width={w.w / 3}
+            height={w.h / 3}
+            fill="#0005"
+          />
+          <rect
+            x={w.x / 3}
+            y={w.y / 3}
+            width={w.w / 3}
+            height={w.h / 3}
+            fill={`#${a.stone.toString(16)}`}
+          />
+          <rect
+            x={w.x / 3}
+            y={w.y / 3}
+            width={w.w / 3}
+            height="2"
+            fill="#ffffff25"
+          />
+        </g>
+      ))}
+      <path d="m160 83 9 17-9 17-9-17Z" fill={`#${a.accent.toString(16)}`} />
+      <g fill="#ff738c">
+        <rect x="27" y="90" width="9" height="13" />
+        <rect x="26" y="87" width="11" height="5" />
+      </g>
+      <g fill="#6dddff">
+        <rect x="282" y="101" width="9" height="13" />
+        <rect x="281" y="98" width="11" height="5" />
+      </g>
+    </svg>
+  );
+}
 function App() {
-  const [s, setS] = useState<typeof state>(null),
+  const [s, setS] = useState<Snapshot | null>(null),
     [id, setId] = useState(""),
     [name, setName] = useState(localStorage.getItem("rift-name") || ""),
     [code, setCode] = useState(
       new URLSearchParams(location.search).get("room") || "",
     ),
     [error, setError] = useState(""),
+    [notice, setNotice] = useState(""),
     [online, setOnline] = useState(false),
+    [pending, setPending] = useState(false),
     [time, setTime] = useState(Date.now()),
-    [sound, setSound] = useState(true);
-  const mount = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    socket.on("connect", () => {
-      setOnline(true);
-      const token = sessionStorage.getItem("rift-token");
-      if (token) enter(false, true);
-    });
-    socket.on("disconnect", () => {
-      setOnline(false);
-      input.fire = false;
-      input.x = input.y = 0;
-    });
-    socket.on("state", (r) => {
-      if (state && r.scores.join() !== state.scores.join()) beep(700);
-      state = r;
-      offset = r.now - Date.now();
-      setS(r);
-    });
-    const timer = setInterval(() => {
-      setTime(Date.now() + offset);
-      if (me && socket.connected) socket.emit("input", input);
-    }, 33);
-    const blur = () => {
-      input.x = input.y = 0;
-      input.fire = input.dash = input.shield = false;
-      touchMove = touchDash = touchShield = false;
-    };
-    window.addEventListener("blur", blur);
-    return () => {
-      clearInterval(timer);
-      window.removeEventListener("blur", blur);
-    };
-  }, []);
-  useEffect(() => {
-    if (!s || !mount.current) return;
-    const game = new Phaser.Game({
-      type: Phaser.AUTO,
-      parent: mount.current,
-      width: 960,
-      height: 600,
-      pixelArt: true,
-      backgroundColor: "#161b30",
-      scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
-      scene: Arena,
-    });
-    return () => game.destroy(true);
-  }, [!!s]);
-  function enter(create: boolean, resume = false) {
-    socket.emit(
+    [sfx, setSfx] = useState(effectsEnabled),
+    [music, setMusicState] = useState(musicEnabled),
+    [help, setHelp] = useState(false);
+  const mount = useRef<HTMLDivElement>(null),
+    nameRef = useRef(name);
+  nameRef.current = name;
+  function join(create: boolean, resume = false) {
+    unlock();
+    setPending(true);
+    socket.timeout(8000).emit(
       "enter",
       {
-        name: resume ? localStorage.getItem("rift-name") : name,
-        code,
+        name: resume ? localStorage.getItem("rift-name") : nameRef.current,
+        code: new URLSearchParams(location.search).get("room") || code,
         create,
         token: resume ? sessionStorage.getItem("rift-token") : undefined,
       },
-      (r: any) => {
-        if (r.error) {
-          if (resume) sessionStorage.removeItem("rift-token");
-          setError(r.error);
+      (err: any, r: any) => {
+        setPending(false);
+        if (err || r?.error) {
+          if (resume) {
+            sessionStorage.removeItem("rift-token");
+            identify("");
+            receive(null);
+            setS(null);
+            resetInput();
+          }
+          setError(
+            err ? "Server is taking a moment. Please try again." : r.error,
+          );
           return;
         }
-        me = r.id;
+        identify(r.id);
         setId(r.id);
         sessionStorage.setItem("rift-token", r.token);
         localStorage.setItem(
           "rift-name",
-          name || localStorage.getItem("rift-name") || "Rifter",
+          nameRef.current || localStorage.getItem("rift-name") || "Rifter",
         );
         history.replaceState({}, "", `?room=${r.code}`);
         setError("");
       },
     );
   }
+  useEffect(() => {
+    const connected = () => {
+      setOnline(true);
+      if (sessionStorage.getItem("rift-token")) join(false, true);
+    };
+    const disconnected = () => {
+      setOnline(false);
+      resetInput();
+    };
+    const snapshot = (r: Snapshot) => {
+      if (state?.phase !== "finished" && r.phase === "finished") sound("win");
+      receive(r);
+      setS(r);
+    };
+    socket.on("connect", connected);
+    socket.on("disconnect", disconnected);
+    socket.on("state", snapshot);
+    socket.connect();
+    const timer = setInterval(() => {
+      setTime(Date.now() + offset);
+      if (
+        me &&
+        socket.connected &&
+        state &&
+        ["playing", "overtime"].includes(state.phase)
+      )
+        socket.emit("input", input);
+    }, 33);
+    const blur = () => resetInput();
+    window.addEventListener("blur", blur);
+    const visibility = () => {
+      if (document.hidden) resetInput();
+    };
+    document.addEventListener("visibilitychange", visibility);
+    return () => {
+      clearInterval(timer);
+      socket.off("connect", connected);
+      socket.off("disconnect", disconnected);
+      socket.off("state", snapshot);
+      socket.disconnect();
+      window.removeEventListener("blur", blur);
+      document.removeEventListener("visibilitychange", visibility);
+    };
+  }, []);
+  useEffect(() => {
+    if (!s || ["lobby", "finished"].includes(s.phase) || !mount.current) return;
+    const game = new Phaser.Game({
+      type: Phaser.AUTO,
+      parent: mount.current,
+      width: 960,
+      height: 600,
+      pixelArt: true,
+      backgroundColor: "#151b30",
+      scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
+      scene: Arena,
+    });
+    return () => game.destroy(true);
+  }, [!!s, s?.phase === "lobby" || s?.phase === "finished"]);
+  useEffect(() => {
+    if (!notice) return;
+    const t = setTimeout(() => setNotice(""), 2500);
+    return () => clearTimeout(t);
+  }, [notice]);
   const self = s?.players.find((p) => p.id === id),
-    lobby = s && ["lobby", "finished"].includes(s.phase);
+    lobby = !!s && ["lobby", "finished"].includes(s.phase),
+    host = s?.host === id,
+    arena = s?.arena ?? "astral",
+    mode = s?.mode ?? "crystal",
+    rule = modes[mode];
+  const configure = (a: any) => {
+    unlock();
+    sound("ui");
+    socket.emit("lobby", a);
+  };
+  const left = Math.max(0, (s?.end ?? 0) - time),
+    timer = `${Math.floor(left / 60000)}:${String(Math.floor(left / 1000) % 60).padStart(2, "0")}`;
+  function leave() {
+    sessionStorage.removeItem("rift-token");
+    resetInput();
+    location.href = location.pathname;
+  }
+  async function invite() {
+    try {
+      await navigator.clipboard.writeText(location.href);
+      setNotice("Invite link copied. Send it to your squad.");
+    } catch {
+      setNotice(`Share this room code: ${s?.code}`);
+    }
+  }
   return (
-    <main>
+    <main className={s && !lobby ? "in-match" : ""} onPointerDown={unlock}>
       <header>
         <a href="/" className="brand">
-          <b>✦</b> PIXEL RIFT<span>ARENA CLASH</span>
+          <b>✦</b>
+          <div>
+            PIXEL RIFT<span>ARENA CLASH</span>
+          </div>
         </a>
-        <div className="status">
-          <i className={online ? "on" : ""} />
-          {online ? "SERVER ONLINE" : "CONNECTING…"}
+        <nav>
+          <span className={`connection-dot ${online ? "online" : ""}`} />
+          <small>{online ? "RIFT ONLINE" : "CONNECTING"}</small>
           <button
+            aria-pressed={sfx}
             onClick={() => {
-              muted = sound;
-              setSound(!sound);
+              setEffects(!sfx);
+              setSfx(!sfx);
             }}
           >
-            {sound ? "♪ ON" : "♪ OFF"}
+            SFX {sfx ? "ON" : "OFF"}
           </button>
-        </div>
+          <button
+            aria-pressed={music}
+            onClick={() => {
+              setMusic(!music);
+              setMusicState(!music);
+            }}
+          >
+            MUSIC {music ? "ON" : "OFF"}
+          </button>
+          <button aria-label="How to play" onClick={() => setHelp(!help)}>
+            ?
+          </button>
+        </nav>
       </header>
       {!s ? (
-        <section className="landing">
-          <div className="eyebrow">2–4 PLAYERS · TEAM ARENA · NO LOGIN</div>
-          <h1>
-            Small pixels.
-            <br />
-            <em>Big rivalries.</em>
-          </h1>
-          <p>
-            Grab your crew. Cross the rift.
-            <br />
-            Battle for crystals in a three-minute showdown.
-          </p>
-          <div className="join">
-            <label>
-              YOUR NICKNAME
-              <input
-                maxLength={18}
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Enter your name"
-              />
-            </label>
-            <button
-              className="primary"
-              disabled={!online}
-              onClick={() => enter(true)}
-            >
-              CREATE A ROOM ↗
-            </button>
-            <div className="divider">OR JOIN YOUR FRIENDS</div>
-            <div className="joinrow">
-              <input
-                aria-label="Room code"
-                maxLength={6}
-                value={code}
-                onChange={(e) => setCode(e.target.value.toUpperCase())}
-                placeholder="ROOM CODE"
-              />
-              <button
-                disabled={!online || code.length !== 6}
-                onClick={() => enter(false)}
-              >
-                JOIN →
-              </button>
-            </div>
-            {error && (
-              <p role="alert" className="error">
-                {error}
+        <>
+          <section className="hero">
+            <div className="hero-copy">
+              <span className="eyebrow">THE RIFT IS OPEN · 2–4 PLAYERS</span>
+              <h1>
+                Small pixels.
+                <br />
+                <em>Big rivalries.</em>
+              </h1>
+              <p>
+                One arena. Two teams. Your next <br className="desktop-break" />
+                “one more round” starts here.
               </p>
-            )}
-          </div>
-          <div className="features">
-            <span>◆ COLLECT +1</span>
-            <span>⚡ KNOCKOUT +3</span>
-            <span>⚑ FIRST TO 20</span>
-          </div>
-        </section>
+              <div className="hero-tags">
+                <span>NO LOGIN</span>
+                <span>PHONE + DESKTOP</span>
+                <span>3 MINUTE ROUNDS</span>
+              </div>
+              <div className="hero-map">
+                <ArenaPreview />
+                <span>◆ TEAM UP. POWER UP. TAKE THE RIFT.</span>
+              </div>
+            </div>
+            <div className="join-card">
+              <div className="card-top">
+                <span className="eyebrow">YOUR NEXT MATCH</span>
+                <span>01 / JOIN THE RIFT</span>
+              </div>
+              <h2>Bring your squad.</h2>
+              <p>Create a private room code. Invite up to three friends.</p>
+              <label>
+                YOUR NICKNAME
+                <input
+                  maxLength={18}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="What should we call you?"
+                  autoComplete="nickname"
+                />
+              </label>
+              <button
+                className="primary large"
+                disabled={!online || pending}
+                onClick={() => join(true)}
+              >
+                {pending ? "OPENING THE RIFT…" : "CREATE ROOM"} <span>↗</span>
+              </button>
+              <div className="divider">ALREADY HAVE A CODE?</div>
+              <div className="join-row">
+                <input
+                  aria-label="Room code"
+                  maxLength={6}
+                  value={code}
+                  onChange={(e) => {
+                    setCode(e.target.value.toUpperCase());
+                    history.replaceState({}, "", location.pathname);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && code.length === 6) join(false);
+                  }}
+                  placeholder="6-DIGIT CODE"
+                />
+                <button
+                  disabled={!online || pending || code.length !== 6}
+                  onClick={() => join(false)}
+                >
+                  JOIN →
+                </button>
+              </div>
+              <small className="quiet">
+                Room codes work across phones and laptops.
+              </small>
+              {error && (
+                <p className="error" role="alert">
+                  {error}
+                </p>
+              )}
+            </div>
+          </section>
+          <section className="mode-showcase">
+            {(Object.keys(modes) as ModeId[]).map((m, i) => (
+              <article key={m}>
+                <span className="mode-number">0{i + 1}</span>
+                <h3>{modes[m].name}</h3>
+                <p>{modes[m].description}</p>
+                <small>FIRST TO {modes[m].target}</small>
+              </article>
+            ))}
+          </section>
+        </>
       ) : (
         <>
-          <div className="matchbar">
+          <div className="room-heading">
             <div>
+              <span className="eyebrow">
+                {lobby ? "SQUAD LOBBY" : arenas[arena].name.toUpperCase()}
+              </span>
+              <h2>
+                {lobby
+                  ? s.phase === "finished"
+                    ? "Run it back."
+                    : "Your squad. Your rules."
+                  : rule.name}
+              </h2>
+            </div>
+            <div className="room-share">
               <small>ROOM CODE</small>
               <strong>{s.code}</strong>
-              <button
-                onClick={() =>
-                  navigator.clipboard
-                    .writeText(location.href)
-                    .catch(() => setError("Copy the URL from your address bar"))
-                }
-              >
-                COPY INVITE ↗
+              <button onClick={invite}>COPY INVITE ↗</button>
+              <button className="quiet-button" onClick={leave}>
+                LEAVE
               </button>
             </div>
-            <div className="score">
-              <b className="red">{s.scores[0]}</b>
-              <span>
-                {s.phase === "overtime"
-                  ? "SUDDEN DEATH"
-                  : s.phase === "playing"
-                    ? `${Math.floor(Math.max(0, s.end - time) / 60000)}:${String(Math.floor(Math.max(0, s.end - time) / 1000) % 60).padStart(2, "0")}`
-                    : "TO 20"}
-              </span>
-              <b className="blue">{s.scores[1]}</b>
-            </div>
           </div>
-          <div className="arenaWrap">
-            <div className="arena" ref={mount} />
-            {lobby && (
-              <div className="overlay">
-                <div className="panel">
-                  <div className="eyebrow">
-                    {s.phase === "finished"
-                      ? "MATCH COMPLETE"
-                      : "ASSEMBLE YOUR SQUAD"}
-                  </div>
-                  <h2>
-                    {s.phase === "finished"
-                      ? s.winner === "Draw"
-                        ? "A perfect tie."
-                        : `${s.winner} wins!`
-                      : "The rift is waiting."}
-                  </h2>
-                  <div className="teams">
-                    {[0, 1].map((t) => (
-                      <div key={t}>
-                        <h3 className={t ? "blue" : "red"}>
-                          {t ? "AZURE" : "CRIMSON"}
-                        </h3>
-                        {s.players
-                          .filter((p) => p.team === t)
-                          .map((p) => (
-                            <p key={p.id}>
-                              {p.name} {p.id === s.host ? "♛" : ""}
-                              <small>
-                                {!p.online
-                                  ? "RECONNECTING"
-                                  : p.ready
-                                    ? "READY ✓"
-                                    : "NOT READY"}
-                              </small>
-                            </p>
-                          ))}
-                        <button
-                          disabled={self?.team === t}
-                          onClick={() => socket.emit("lobby", { team: t })}
-                        >
-                          JOIN TEAM
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                  {s.players.filter((p) => p.team === 0 && p.online).length !==
-                    s.players.filter((p) => p.team === 1 && p.online)
-                      .length && (
-                    <small>Teams are unbalanced. 2 vs 1 is allowed.</small>
-                  )}
-                  <div className="actions">
+          {lobby ? (
+            <div className="lobby-grid">
+              <section className="setup-card">
+                <div className="card-top">
+                  <span className="eyebrow">BATTLEGROUND</span>
+                  <small>{host ? "HOST CONTROLS" : "CHOSEN BY HOST"}</small>
+                </div>
+                <ArenaPreview arena={arena} />
+                <div className="arena-options">
+                  {(Object.keys(arenas) as ArenaId[]).map((a) => (
                     <button
-                      className="primary"
-                      onClick={() => {
-                        beep();
-                        socket.emit("lobby", { ready: !self?.ready });
-                      }}
+                      key={a}
+                      disabled={!host}
+                      className={arena === a ? "selected" : ""}
+                      aria-pressed={arena === a}
+                      onClick={() => configure({ arena: a })}
                     >
-                      {self?.ready ? "UNREADY" : "READY UP ✓"}
+                      <i
+                        style={{
+                          background: `#${arenas[a].accent.toString(16)}`,
+                        }}
+                      />
+                      {arenas[a].name}
                     </button>
-                    {s.host === id && (
+                  ))}
+                </div>
+                <p className="quiet">{arenas[arena].tag}</p>
+                <label>
+                  GAME MODE
+                  <select
+                    disabled={!host}
+                    value={mode}
+                    onChange={(e) => configure({ mode: e.target.value })}
+                  >
+                    {(Object.keys(modes) as ModeId[]).map((m) => (
+                      <option key={m} value={m}>
+                        {modes[m].name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <p>
+                  {rule.description} · First to {rule.target}.
+                </p>
+                <small className="quiet">
+                  Changing arena or mode resets everyone's ready status.
+                </small>
+              </section>
+              <section className="squad-card">
+                {s.phase === "finished" && (
+                  <div
+                    className={`result-banner ${s.winner === "Crimson" ? "red" : "blue"}`}
+                  >
+                    <span>✦ MATCH COMPLETE</span>
+                    <h2>
+                      {s.winner === "Draw"
+                        ? "A perfect tie."
+                        : `${s.winner} takes the rift!`}
+                    </h2>
+                    <strong>
+                      {s.scores[0]} — {s.scores[1]}
+                    </strong>
+                  </div>
+                )}
+                <div className="card-top">
+                  <span className="eyebrow">PLAYERS</span>
+                  <small>{s.players.length} / 4 CONNECTED SLOTS</small>
+                </div>
+                <div className="teams">
+                  {[0, 1].map((t) => (
+                    <div key={t} className={`team team-${t}`}>
+                      <div className="team-title">
+                        <h3>{t ? "AZURE" : "CRIMSON"}</h3>
+                        <span>
+                          {s.players.filter((p) => p.team === t).length}/2
+                        </span>
+                      </div>
+                      {s.players
+                        .filter((p) => p.team === t)
+                        .map((p) => (
+                          <div
+                            className={`player-card ${p.ready ? "is-ready" : ""}`}
+                            key={p.id}
+                          >
+                            <div className={`pixel-avatar avatar-${t}`} />
+                            <div>
+                              <b>
+                                {p.name}
+                                {p.id === id ? " (YOU)" : ""}{" "}
+                                {p.id === s.host ? "♛" : ""}
+                              </b>
+                              <small>
+                                {p.loadout === "mend" ? "✚ MEND" : "✦ NOVA"}
+                                {s.phase === "finished"
+                                  ? ` · ${p.kills} K / ${p.deaths} D`
+                                  : ""}
+                              </small>
+                            </div>
+                            <span className="ready-dot">
+                              {!p.online ? "↻" : p.ready ? "✓" : "•"}
+                            </span>
+                          </div>
+                        ))}
+                      {Array.from(
+                        {
+                          length: Math.max(
+                            0,
+                            2 - s.players.filter((p) => p.team === t).length,
+                          ),
+                        },
+                        (_, i) => (
+                          <div key={i} className="empty-slot">
+                            + Waiting for a friend
+                          </div>
+                        ),
+                      )}
                       <button
                         disabled={
-                          s.players.filter((p) => p.online).length < 2 ||
-                          !s.players
-                            .filter((p) => p.online)
-                            .every((p) => p.ready) ||
-                          ![0, 1].every((t) =>
-                            s.players.some((p) => p.online && p.team === t),
-                          )
+                          self?.team === t ||
+                          s.players.filter((p) => p.team === t).length >= 2
                         }
-                        onClick={() => socket.emit("lobby", { start: true })}
+                        onClick={() => configure({ team: t })}
                       >
-                        START MATCH →
+                        {self?.team === t ? "YOUR TEAM" : "SWITCH TEAM"}
                       </button>
-                    )}
-                  </div>
-                  <small>
-                    {s.host !== id
-                      ? "Host starts when both teams are ready."
-                      : "At least one ready player on each team to start."}
-                  </small>
+                    </div>
+                  ))}
                 </div>
+                <div className="loadout">
+                  <label>
+                    YOUR SPECIAL <kbd>Q</kbd>
+                  </label>
+                  <div>
+                    <button
+                      aria-pressed={self?.loadout === "nova"}
+                      className={self?.loadout === "nova" ? "selected" : ""}
+                      onClick={() => configure({ loadout: "nova" })}
+                    >
+                      <b>✦ NOVA</b>
+                      <small>3-bolt spread · 8s cooldown</small>
+                    </button>
+                    <button
+                      aria-pressed={self?.loadout === "mend"}
+                      className={self?.loadout === "mend" ? "selected" : ""}
+                      onClick={() => configure({ loadout: "mend" })}
+                    >
+                      <b>✚ MEND</b>
+                      <small>Restore 30 HP · 15s cooldown</small>
+                    </button>
+                  </div>
+                </div>
+                <div className="lobby-footer">
+                  <div>
+                    <b>
+                      {s.players.filter((p) => p.online && p.ready).length} /{" "}
+                      {s.players.filter((p) => p.online).length} READY
+                    </b>
+                    <small>
+                      {s.players.filter((p) => p.team === 0 && p.online)
+                        .length !==
+                      s.players.filter((p) => p.team === 1 && p.online).length
+                        ? "Unbalanced teams · 2 vs 1 allowed."
+                        : "Both teams need a ready player."}
+                    </small>
+                  </div>
+                  <button
+                    className={self?.ready ? "" : "primary"}
+                    onClick={() => configure({ ready: !self?.ready })}
+                  >
+                    {self?.ready ? "UNREADY" : "READY UP ✓"}
+                  </button>
+                  {host && (
+                    <button
+                      className="start-button"
+                      disabled={
+                        s.players.filter((p) => p.online).length < 2 ||
+                        !s.players
+                          .filter((p) => p.online)
+                          .every((p) => p.ready) ||
+                        ![0, 1].every((t) =>
+                          s.players.some((p) => p.online && p.team === t),
+                        )
+                      }
+                      onClick={() => configure({ start: true })}
+                    >
+                      {s.phase === "finished" ? "REMATCH" : "START MATCH"} →
+                    </button>
+                  )}
+                </div>
+                {!host && (
+                  <small className="quiet">
+                    The host starts once everyone is ready.
+                  </small>
+                )}
+              </section>
+            </div>
+          ) : (
+            <div className="battle-hud">
+              <div className="score-team red">
+                <span>CRIMSON</span>
+                <strong>{s.scores[0]}</strong>
               </div>
-            )}
+              <div className="score-clock">
+                <b>{s.phase === "overtime" ? "SUDDEN DEATH" : timer}</b>
+                <small>
+                  {rule.description} · TO {rule.target}
+                </small>
+              </div>
+              <div className="score-team blue">
+                <strong>{s.scores[1]}</strong>
+                <span>AZURE</span>
+              </div>
+            </div>
+          )}
+          <div className={`arenaWrap ${lobby ? "lobby-arena" : ""}`}>
+            <div className="arena" ref={mount} />
             {!online && (
               <div className="connection">
                 Connection lost. Rejoining automatically…
@@ -492,95 +704,152 @@ function App() {
             )}
             {self?.respawn && !lobby ? (
               <div className="respawn">
-                BACK IN {Math.max(1, Math.ceil((self.respawn - time) / 1000))}
+                <span>RIFT RECALL</span>
+                <b>{Math.max(1, Math.ceil((self.respawn - time) / 1000))}</b>
+                <small>Back in the fight in a moment.</small>
               </div>
             ) : null}
           </div>
-          <div className="abilities">
-            <span>
-              HP <b>{self?.hp ?? 100}</b>
-            </span>
-            <span>
-              DASH{" "}
-              {self && self.dash > time
-                ? `${Math.ceil((self.dash - time) / 1000)}s`
-                : "READY"}{" "}
-              <kbd>SPACE</kbd>
-            </span>
-            <span>
-              SHIELD{" "}
-              {self && self.shield > time
-                ? `${Math.ceil((self.shield - time) / 1000)}s`
-                : "READY"}{" "}
-              <kbd>E</kbd>
-            </span>
-          </div>
           {!lobby && (
-            <div className="touch">
-              <Stick />
-              <div className="touchright">
-                <Stick aim />
-                <div>
-                  <button
-                    onPointerDown={(e) => {
-                      e.currentTarget.setPointerCapture(e.pointerId);
-                      input.fire = true;
-                    }}
-                    onPointerUp={() => (input.fire = false)}
-                    onPointerCancel={() => (input.fire = false)}
+            <>
+              <div className="abilities">
+                <div className="health">
+                  <small>VITALITY</small>
+                  <b>
+                    {self?.hp ?? 100}
+                    <small> / 100</small>
+                  </b>
+                  <i>
+                    <span style={{ width: `${self?.hp ?? 100}%` }} />
+                  </i>
+                </div>
+                {[
+                  { name: "DASH", key: "SPACE", at: self?.dash ?? 0, cd: 5000 },
+                  {
+                    name: "SHIELD",
+                    key: "E",
+                    at: self?.shield ?? 0,
+                    cd: 12000,
+                  },
+                  {
+                    name: self?.loadout === "mend" ? "MEND" : "NOVA",
+                    key: "Q",
+                    at: self?.special ?? 0,
+                    cd: self?.loadout === "mend" ? 15000 : 8000,
+                  },
+                ].map((a) => (
+                  <div
+                    className={`ability ${a.at > time ? "cooling" : "available"}`}
+                    key={a.name}
                   >
-                    FIRE
-                  </button>
-                  <button
-                    onPointerDown={(e) => {
-                      e.currentTarget.setPointerCapture(e.pointerId);
-                      touchDash = true;
-                    }}
-                    onPointerUp={() => (touchDash = false)}
-                    onPointerCancel={() => (touchDash = false)}
-                  >
-                    DASH
-                  </button>
-                  <button
-                    onPointerDown={(e) => {
-                      e.currentTarget.setPointerCapture(e.pointerId);
-                      touchShield = true;
-                    }}
-                    onPointerUp={() => (touchShield = false)}
-                    onPointerCancel={() => (touchShield = false)}
-                  >
-                    SHIELD
-                  </button>
+                    <kbd>{a.key}</kbd>
+                    <span>
+                      <b>{a.name}</b>
+                      <small>
+                        {a.at > time
+                          ? `${Math.ceil((a.at - time) / 1000)}s`
+                          : "READY"}
+                      </small>
+                    </span>
+                    <i
+                      style={{
+                        width: `${100 - Math.max(0, (a.at - time) / a.cd) * 100}%`,
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+              {mode === "control" && (
+                <div className="control-status">
+                  {s.controlTeam === 0
+                    ? "CRIMSON CONTROLS THE RIFT"
+                    : s.controlTeam === 1
+                      ? "AZURE CONTROLS THE RIFT"
+                      : "CENTER OPEN OR CONTESTED · ENTER THE RING"}
+                </div>
+              )}
+              <div className="touch">
+                <Stick />
+                <div className="touchright">
+                  <Stick aim />
+                  <div className="touch-buttons">
+                    <TouchButton action="fire" label="FIRE" />
+                    <TouchButton action="dash" label="DASH" />
+                    <TouchButton action="shield" label="SHIELD" />
+                    <TouchButton
+                      action="special"
+                      label={self?.loadout === "mend" ? "MEND" : "NOVA"}
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
+              <div className="match-tip">
+                WASD move · MOUSE aim · CLICK fire · SPACE dash · E shield · Q
+                special
+              </div>
+            </>
+          )}
+          {error && (
+            <p className="error" role="alert">
+              {error}
+            </p>
           )}
         </>
       )}
-      <details className="rules">
+      {notice && (
+        <div className="toast" role="status">
+          {notice}
+        </div>
+      )}
+      <details
+        className="rules"
+        open={help}
+        onToggle={(e) => setHelp(e.currentTarget.open)}
+      >
         <summary>
-          HOW TO PLAY <span>+</span>
+          FIELD MANUAL <span>{help ? "−" : "+"}</span>
         </summary>
-        <p>
-          Crimson vs Azure. Crystals earn 1 point; knockouts earn 3. First to 20
-          wins, or lead after 3 minutes. A tie starts 30 seconds of sudden
-          death: the next score wins. Still tied? A draw.
-        </p>
-        <p>
-          WASD / arrows to move · Mouse to aim · Hold click to fire · Space to
-          dash (5s cooldown) · E for a 1.5s shield (12s cooldown). Each bolt
-          deals 20 of 100 HP. Respawn in 3 seconds with brief protection.
-          Phones: use MOVE and AIM sticks plus FIRE, DASH and SHIELD. Landscape
-          recommended.
-        </p>
-        <p>
-          Create a room, copy the invite, and choose teams. Everyone marks
-          ready; the host starts. Up to two players per team. A disconnected
-          slot is reserved for 30 seconds. Rematch from the results screen.
-        </p>
+        <div className="manual-grid">
+          <div>
+            <h3>01 / Squad up</h3>
+            <p>
+              Create a room or join with its code. Pick a team and Nova or Mend.
+              Everyone marks ready; the host launches. No accounts, no installs.
+            </p>
+          </div>
+          <div>
+            <h3>02 / Know your kit</h3>
+            <p>
+              Move with WASD/arrows, aim with mouse, hold click to fire. Space
+              dashes (5s); E shields for 1.5s (12s). Q fires three 15-damage
+              Nova bolts (8s) or heals 30 HP with Mend (15s). Basic bolts deal
+              20 damage. No friendly fire.
+            </p>
+          </div>
+          <div>
+            <h3>03 / Take the rift</h3>
+            <p>
+              Crystal Clash: crystals +1, KOs +3, target 20. Knockout: KOs +3,
+              target 15. Rift Control: hold center uncontested for +1 per
+              second, target 40. Highest score at 3 minutes wins; ties get
+              30-second sudden death. Still tied? Draw. Respawn in 3 seconds.
+            </p>
+          </div>
+          <div>
+            <h3>04 / Take it anywhere</h3>
+            <p>
+              On phones use MOVE and AIM sticks, then FIRE, DASH, SHIELD and
+              your special. Landscape recommended. A lost connection reserves
+              your slot for 30 seconds. Rooms reset when the server restarts.
+            </p>
+          </div>
+        </div>
       </details>
       <footer>
-        PIXEL RIFT <span>BUILT FOR FRIENDLY RIVALRIES</span>
+        <span>
+          ✦ PIXEL RIFT <em>ARENA CLASH</em>
+        </span>
+        <span>BUILT FOR FRIENDLY RIVALRIES</span>
       </footer>
     </main>
   );
