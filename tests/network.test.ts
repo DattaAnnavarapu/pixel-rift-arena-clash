@@ -1,12 +1,17 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { PROTOCOL_VERSION } from "../server/release.js";
 import { io, type Socket } from "socket.io-client";
 import { createGameServer } from "../server/index.js";
 const enter = (s: Socket, data: any) =>
   new Promise<any>((resolve, reject) =>
     s
       .timeout(4000)
-      .emit("enter", data, (e: any, r: any) => (e ? reject(e) : resolve(r))),
+      .emit(
+        "enter",
+        { protocol: PROTOCOL_VERSION, ...data },
+        (e: any, r: any) => (e ? reject(e) : resolve(r)),
+      ),
   );
 const state = (s: Socket, predicate: (r: any) => boolean) =>
   new Promise<any>((resolve, reject) => {

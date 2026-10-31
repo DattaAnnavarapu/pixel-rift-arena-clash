@@ -1,3 +1,4 @@
+import { settings } from "./settings";
 import Phaser from "phaser";
 import {
   arenas,
@@ -5,7 +6,16 @@ import {
   hazardActive,
   type Effect,
 } from "../server/game";
-import { state, me, offset, input, touch } from "./runtime";
+import {
+  state,
+  me,
+  offset,
+  input,
+  touch,
+  uiPaused,
+  resetInput,
+  queueAction,
+} from "./runtime";
 import { predictPosition, boltPosition } from "./prediction";
 import { sound } from "./audio";
 const teamColors = [0xff647f, 0x60d5ff];
@@ -53,15 +63,33 @@ export default class Arena extends Phaser.Scene {
       );
     this.bg = this.add.graphics();
     this.g = this.add.graphics();
+    this.game.canvas.tabIndex = 0;
+    this.game.canvas.setAttribute(
+      "aria-label",
+      "Pixel Rift arena. WASD move, mouse aim, click fire, Space dash, E shield, Q special.",
+    );
+    if (!uiPaused) this.game.canvas.focus({ preventScroll: true });
     this.keys = this.input.keyboard?.addKeys(
       "W,A,S,D,UP,DOWN,LEFT,RIGHT,SPACE,E,Q",
     );
+    for (const [key, action] of [
+      ["Q", "special"],
+      ["E", "shield"],
+      ["SPACE", "dash"],
+    ] as const)
+      this.input.keyboard?.on(`keydown-${key}`, (event: KeyboardEvent) => {
+        if (!event.repeat) queueAction(action);
+      });
     this.input.keyboard?.addCapture(["SPACE", "UP", "DOWN", "LEFT", "RIGHT"]);
     this.input.on("pointermove", (p: Phaser.Input.Pointer) => {
       if (!p.wasTouch) touch.aim = false;
     });
     this.input.on("pointerdown", (p: Phaser.Input.Pointer) => {
-      if (!p.wasTouch) input.fire = true;
+      if (!p.wasTouch) {
+        this.game.canvas.focus({ preventScroll: true });
+        input.fire = true;
+        queueAction("fire");
+      }
     });
     this.input.on("pointerup", () => (input.fire = false));
     this.events.once("shutdown", () => {
@@ -195,14 +223,18 @@ export default class Arena extends Phaser.Scene {
       .setStrokeStyle(e.kind === "ko" ? 5 : 2, c, 0.9);
     this.tweens.add({
       targets: ring,
-      radius: e.kind === "ko" ? 65 : 40,
+      radius: e.kind === "pulse" ? 120 : e.kind === "ko" ? 65 : 40,
       alpha: 0,
       duration: 450,
       onComplete: () => {
         ring.setVisible(false).setActive(false);
       },
     });
-    for (let i = 0; i < (e.kind === "ko" ? 20 : 8); i++) {
+    for (
+      let i = 0;
+      i < (settings.particles ? (e.kind === "ko" ? 20 : 8) : 0);
+      i++
+    ) {
       const angle = (i * Math.PI * 2) / (e.kind === "ko" ? 20 : 8),
         p = this.particles.find((o) => !o.active);
       if (!p) break;
@@ -262,8 +294,12 @@ export default class Arena extends Phaser.Scene {
   }
   update(_time: number, delta: number) {
     if (!state) return;
+    this.reduced =
+      matchMedia("(prefers-reduced-motion: reduce)").matches ||
+      settings.reducedMotion;
     const k = this.keys;
-    if (k) {
+    if (uiPaused) resetInput();
+    if (k && !uiPaused) {
       if (!touch.move) {
         input.x =
           Number(k.D.isDown || k.RIGHT.isDown) -

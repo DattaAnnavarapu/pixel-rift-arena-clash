@@ -1,9 +1,14 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import Phaser from "phaser";
 import { io } from "socket.io-client";
-import { arenas, modes, type ArenaId, type ModeId } from "../server/game";
-import Arena from "./arena";
+import {
+  arenas,
+  modes,
+  loadouts,
+  type ArenaId,
+  type ModeId,
+  type LoadoutId,
+} from "../server/game";
 import {
   state,
   me,
@@ -13,6 +18,9 @@ import {
   identify,
   receive,
   resetInput,
+  pauseInput,
+  queueAction,
+  inputPacket,
   type Snapshot,
 } from "./runtime";
 import {
@@ -23,10 +31,24 @@ import {
   effectsEnabled,
   musicEnabled,
   updateMusic,
+  setVolume,
 } from "./audio";
 import { readProgress, updateProgress, favorite } from "./progress";
+import { PROTOCOL_VERSION, RELEASE_VERSION } from "../server/release";
+import {
+  settings as initialSettings,
+  saveSettings,
+  type Settings,
+} from "./settings";
+import { ReleasePanel } from "./ui/ReleasePanels";
 import "./style.css";
-const socket = io({ autoConnect: false, transports: ["websocket", "polling"] });
+const socket = io({
+  autoConnect: false,
+  transports: ["websocket", "polling"],
+  tryAllTransports: true,
+  reconnectionDelay: 500,
+  reconnectionDelayMax: 4000,
+});
 function Stick({ aim = false }: { aim?: boolean }) {
   function release(e: React.PointerEvent) {
     if (!aim) {
@@ -92,6 +114,7 @@ function TouchButton({
       onPointerDown={(e) => {
         e.currentTarget.setPointerCapture(e.pointerId);
         unlock();
+        queueAction(action);
         down(true);
       }}
       onPointerUp={() => down(false)}
@@ -248,6 +271,19 @@ function App() {
     [sfx, setSfx] = useState(effectsEnabled),
     [music, setMusicState] = useState(musicEnabled),
     [help, setHelp] = useState(false);
+  const [engineLoading, setEngineLoading] = useState(false),
+    [engineError, setEngineError] = useState("");
+  const [panel, setPanel] = useState<"tutorial" | "settings" | null>(null),
+    [settings, setSettings] = useState(initialSettings),
+    [quickMode, setQuickMode] = useState<ModeId>("crystal"),
+    [latency, setLatency] = useState<number | null>(null),
+    [snapshotStale, setSnapshotStale] = useState(false),
+    [mismatch, setMismatch] = useState(false),
+    [previewArena, setPreviewArena] = useState<ArenaId>("astral");
+  const lastSnapshot = useRef(Date.now()),
+    sequence = useRef(0),
+    panelOpen = useRef(false);
+  panelOpen.current = !!panel;
   const [progress, setProgress] = useState(() =>
     readProgress(localStorage.getItem("rift-progress")),
   );
@@ -255,7 +291,11 @@ function App() {
   const mount = useRef<HTMLDivElement>(null),
     nameRef = useRef(name);
   nameRef.current = name;
-  function join(create: boolean, resume = false) {
+  useEffect(() => {
+    pauseInput(!!panel);
+    return () => pauseInput(false);
+  }, [panel]);
+  function join(create: boolean, resume = false, matchmake = false) {
     unlock();
     setPending(true);
     socket.timeout(8000).emit(
@@ -264,6 +304,9 @@ function App() {
         name: resume ? localStorage.getItem("rift-name") : nameRef.current,
         code: new URLSearchParams(location.search).get("room") || code,
         create,
+        matchmake,
+        mode: quickMode,
+        protocol: PROTOCOL_VERSION,
         token: resume ? sessionStorage.getItem("rift-token") : undefined,
       },
       (err: any, r: any) => {
@@ -281,6 +324,7 @@ function App() {
           );
           return;
         }
+        sequence.current = 0;
         identify(r.id);
         setId(r.id);
         sessionStorage.setItem("rift-token", r.token);
@@ -298,11 +342,26 @@ function App() {
       setOnline(true);
       if (sessionStorage.getItem("rift-token")) join(false, true);
     };
+    const hello = (r: { protocol: number }) => {
+      if (r.protocol !== PROTOCOL_VERSION) {
+        setMismatch(true);
+        resetInput();
+      }
+    };
+    const serverClosing = (r: { message: string }) => {
+      setNotice(r.message);
+      resetInput();
+    };
+    socket.on("hello", hello);
+    socket.on("server-closing", serverClosing);
     const disconnected = () => {
       setOnline(false);
       resetInput();
     };
     const snapshot = (r: Snapshot) => {
+      lastSnapshot.current = Date.now();
+      setSnapshotStale(false);
+      if (state?.matchId !== r.matchId) setScoreboard(false);
       if (state?.phase !== "finished" && r.phase === "finished") sound("win");
       updateMusic(r);
       try {
@@ -326,17 +385,35 @@ function App() {
     socket.connect();
     const timer = setInterval(() => {
       setTime(Date.now() + offset);
+      const stale =
+        !!me &&
+        !!state &&
+        ["playing", "overtime"].includes(state.phase) &&
+        Date.now() - lastSnapshot.current > 1500;
+      setSnapshotStale(stale);
+      if (stale || panelOpen.current) resetInput();
       if (
         me &&
         socket.connected &&
         state &&
         ["playing", "overtime"].includes(state.phase)
       )
-        socket.emit("input", input);
+        socket.volatile.emit("input", inputPacket(sequence.current++));
     }, 33);
-    const blur = () => resetInput();
+    const ping = setInterval(() => {
+      const sent = Date.now();
+      if (socket.connected)
+        socket.timeout(3000).emit("ping-check", (err: any) => {
+          if (!err) setLatency(Date.now() - sent);
+        });
+    }, 2500);
+    const blur = () => {
+      resetInput();
+      setScoreboard(false);
+    };
     const tabDown = (e: KeyboardEvent) => {
       if (
+        !panelOpen.current &&
         e.key === "Tab" &&
         state &&
         ["playing", "overtime"].includes(state.phase)
@@ -357,6 +434,9 @@ function App() {
     document.addEventListener("visibilitychange", visibility);
     return () => {
       clearInterval(timer);
+      clearInterval(ping);
+      socket.off("hello", hello);
+      socket.off("server-closing", serverClosing);
       socket.off("connect", connected);
       socket.off("disconnect", disconnected);
       socket.off("state", snapshot);
@@ -368,18 +448,43 @@ function App() {
     };
   }, []);
   useEffect(() => {
+    if (s && ["lobby", "finished"].includes(s.phase))
+      void Promise.all([import("phaser"), import("./arena")]).catch(() => {});
+  }, [!!s]);
+  useEffect(() => {
     if (!s || ["lobby", "finished"].includes(s.phase) || !mount.current) return;
-    const game = new Phaser.Game({
-      type: Phaser.AUTO,
-      parent: mount.current,
-      width: 960,
-      height: 600,
-      pixelArt: true,
-      backgroundColor: "#151b30",
-      scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
-      scene: Arena,
-    });
-    return () => game.destroy(true);
+    let disposed = false,
+      game: import("phaser").Game | undefined;
+    setEngineLoading(true);
+    setEngineError("");
+    void Promise.all([import("phaser"), import("./arena")])
+      .then(([{ default: Phaser }, { default: Arena }]) => {
+        if (disposed) return;
+        game = new Phaser.Game({
+          type: Phaser.AUTO,
+          parent: mount.current!,
+          width: 960,
+          height: 600,
+          pixelArt: true,
+          backgroundColor: "#151b30",
+          scale: {
+            mode: Phaser.Scale.FIT,
+            autoCenter: Phaser.Scale.CENTER_BOTH,
+          },
+          scene: Arena,
+        });
+        setEngineLoading(false);
+      })
+      .catch(() => {
+        if (!disposed) {
+          setEngineLoading(false);
+          setEngineError("Game files could not load. Reload to retry.");
+        }
+      });
+    return () => {
+      disposed = true;
+      game?.destroy(true);
+    };
   }, [!!s, s?.phase === "lobby" || s?.phase === "finished"]);
   useEffect(() => {
     if (!notice) return;
@@ -400,9 +505,26 @@ function App() {
   const left = Math.max(0, (s?.end ?? 0) - time),
     timer = `${Math.floor(left / 60000)}:${String(Math.floor(left / 1000) % 60).padStart(2, "0")}`;
   function leave() {
-    sessionStorage.removeItem("rift-token");
     resetInput();
-    location.href = location.pathname;
+    socket.timeout(3000).emit("leave", () => {
+      sessionStorage.removeItem("rift-token");
+      identify("");
+      receive(null);
+      setS(null);
+      setId("");
+      setError("");
+      setScoreboard(false);
+      history.replaceState({}, "", location.pathname);
+    });
+  }
+  const closePanel = React.useCallback(() => {
+    setPanel(null);
+    resetInput();
+  }, []);
+  function changeSettings(value: Settings) {
+    const saved = saveSettings(value);
+    setSettings({ ...saved });
+    setVolume(saved.volume);
   }
   async function invite() {
     try {
@@ -423,7 +545,13 @@ function App() {
         </a>
         <nav>
           <span className={`connection-dot ${online ? "online" : ""}`} />
-          <small>{online ? "RIFT ONLINE" : "CONNECTING"}</small>
+          <small>
+            {online
+              ? latency === null
+                ? "RIFT ONLINE"
+                : `${latency} MS`
+              : "RECONNECTING"}
+          </small>
           <button
             aria-pressed={sfx}
             onClick={() => {
@@ -442,11 +570,37 @@ function App() {
           >
             MUSIC {music ? "ON" : "OFF"}
           </button>
-          <button aria-label="How to play" onClick={() => setHelp(!help)}>
+          <button
+            aria-label="Player settings"
+            onClick={() => setPanel("settings")}
+          >
+            ⚙
+          </button>
+          <button
+            aria-label="How to play"
+            onClick={() => {
+              resetInput();
+              setPanel("tutorial");
+            }}
+          >
             ?
           </button>
         </nav>
       </header>
+      {mismatch && (
+        <div className="update-banner" role="alert">
+          A new game version is available.{" "}
+          <button onClick={() => location.reload()}>RELOAD GAME</button>
+        </div>
+      )}
+      {panel && (
+        <ReleasePanel
+          kind={panel}
+          settings={settings}
+          onSettings={changeSettings}
+          onClose={closePanel}
+        />
+      )}
       {!s ? (
         <>
           <section className="hero">
@@ -475,10 +629,21 @@ function App() {
               <div className="hero-tags">
                 <span>NO LOGIN</span>
                 <span>PHONE + DESKTOP</span>
-                <span>3 MINUTE ROUNDS</span>
+                <span>90s–3 MINUTE ROUNDS</span>
               </div>
               <div className="hero-map">
-                <ArenaPreview />
+                <ArenaPreview arena={previewArena} />
+                <div className="preview-tabs">
+                  {(Object.keys(arenas) as ArenaId[]).map((a) => (
+                    <button
+                      key={a}
+                      aria-pressed={previewArena === a}
+                      onClick={() => setPreviewArena(a)}
+                    >
+                      {arenas[a].name}
+                    </button>
+                  ))}
+                </div>
                 <span>◆ TEAM UP. POWER UP. TAKE THE RIFT.</span>
               </div>
             </div>
@@ -487,8 +652,8 @@ function App() {
                 <span className="eyebrow">YOUR NEXT MATCH</span>
                 <span>01 / JOIN THE RIFT</span>
               </div>
-              <h2>Bring your squad.</h2>
-              <p>Create a private room code. Invite up to three friends.</p>
+              <h2>Find your next rivalry.</h2>
+              <p>Jump into a public match or invite your own squad.</p>
               <label>
                 YOUR NICKNAME
                 <input
@@ -499,12 +664,33 @@ function App() {
                   autoComplete="nickname"
                 />
               </label>
+              <label className="quick-mode">
+                QUICK PLAY MODE
+                <select
+                  value={quickMode}
+                  onChange={(e) => setQuickMode(e.target.value as ModeId)}
+                >
+                  {(Object.keys(modes) as ModeId[]).map((m) => (
+                    <option key={m} value={m}>
+                      {modes[m].name}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <button
                 className="primary large"
-                disabled={!online || pending}
+                disabled={!online || pending || mismatch}
+                onClick={() => join(false, false, true)}
+              >
+                {pending ? "FINDING A RIFT…" : "QUICK PLAY"}
+                <span>⚡</span>
+              </button>
+              <button
+                className="large"
+                disabled={!online || pending || mismatch}
                 onClick={() => join(true)}
               >
-                {pending ? "OPENING THE RIFT…" : "CREATE ROOM"} <span>↗</span>
+                {pending ? "OPENING THE RIFT…" : "PRIVATE ROOM"} <span>↗</span>
               </button>
               <div className="divider">ALREADY HAVE A CODE?</div>
               <div className="join-row">
@@ -522,15 +708,22 @@ function App() {
                   placeholder="6-DIGIT CODE"
                 />
                 <button
-                  disabled={!online || pending || code.length !== 6}
+                  disabled={!online || pending || mismatch || code.length !== 6}
                   onClick={() => join(false)}
                 >
                   JOIN →
                 </button>
               </div>
               <small className="quiet">
-                Room codes work across phones and laptops.
+                Quick Play matches by mode. Private codes work across phones and
+                laptops.
               </small>
+              <button
+                className="learn-button"
+                onClick={() => setPanel("tutorial")}
+              >
+                FIRST TIME? LEARN TO PLAY →
+              </button>
               {error && (
                 <p className="error" role="alert">
                   {error}
@@ -538,7 +731,7 @@ function App() {
               )}
             </div>
           </section>
-          <section className="mode-showcase">
+          <section className="mode-showcase release-modes">
             {(Object.keys(modes) as ModeId[]).map((m, i) => (
               <article key={m}>
                 <span className="mode-number">0{i + 1}</span>
@@ -560,12 +753,14 @@ function App() {
                 {lobby
                   ? s.phase === "finished"
                     ? "Run it back."
-                    : "Your squad. Your rules."
+                    : s.publicMatch
+                      ? "Your next match is forming."
+                      : "Your squad. Your rules."
                   : rule.name}
               </h2>
             </div>
             <div className="room-share">
-              <small>ROOM CODE</small>
+              <small>{s.publicMatch ? "PUBLIC MATCH" : "PRIVATE ROOM"}</small>
               <strong>{s.code}</strong>
               <button onClick={invite}>COPY INVITE ↗</button>
               <button className="quiet-button" onClick={leave}>
@@ -578,14 +773,20 @@ function App() {
               <section className="setup-card">
                 <div className="card-top">
                   <span className="eyebrow">BATTLEGROUND</span>
-                  <small>{host ? "HOST CONTROLS" : "CHOSEN BY HOST"}</small>
+                  <small>
+                    {s.publicMatch
+                      ? "QUICK PLAY RULES"
+                      : host
+                        ? "HOST CONTROLS"
+                        : "CHOSEN BY HOST"}
+                  </small>
                 </div>
                 <ArenaPreview arena={arena} />
                 <div className="arena-options">
                   {(Object.keys(arenas) as ArenaId[]).map((a) => (
                     <button
                       key={a}
-                      disabled={!host}
+                      disabled={!host || !!s.publicMatch}
                       className={arena === a ? "selected" : ""}
                       aria-pressed={arena === a}
                       onClick={() => configure({ arena: a })}
@@ -603,7 +804,7 @@ function App() {
                 <label>
                   GAME MODE
                   <select
-                    disabled={!host}
+                    disabled={!host || !!s.publicMatch}
                     value={mode}
                     onChange={(e) => configure({ mode: e.target.value })}
                   >
@@ -618,7 +819,9 @@ function App() {
                   {rule.description} · First to {rule.target}.
                 </p>
                 <small className="quiet">
-                  Changing arena or mode resets everyone's ready status.
+                  {s.publicMatch
+                    ? "Quick Play rules are locked; teams balance automatically."
+                    : "Changing arena or mode resets everyone's ready status."}
                 </small>
               </section>
               <section className="squad-card">
@@ -644,7 +847,7 @@ function App() {
                   <span className="eyebrow">PLAYERS</span>
                   <small>{s.players.length} / 4 CONNECTED SLOTS</small>
                 </div>
-                {host && (
+                {host && !s.publicMatch && (
                   <div className="bot-controls">
                     <button
                       onClick={() => configure({ bots: true })}
@@ -684,11 +887,7 @@ function App() {
                                 {p.id === s.host ? "♛" : ""}
                               </b>
                               <small>
-                                {p.loadout === "mend"
-                                  ? "✚ MEND"
-                                  : p.loadout === "blink"
-                                    ? "◇ BLINK"
-                                    : "✦ NOVA"}
+                                {`${loadouts[p.loadout].glyph} ${loadouts[p.loadout].name}`}
                                 {s.phase === "finished"
                                   ? ` · ${p.kills} K / ${p.deaths} D`
                                   : ""}
@@ -714,6 +913,7 @@ function App() {
                       )}
                       <button
                         disabled={
+                          !!s.publicMatch ||
                           self?.team === t ||
                           s.players.filter((p) => p.team === t).length >= 2
                         }
@@ -729,32 +929,28 @@ function App() {
                     YOUR SPECIAL <kbd>Q</kbd>
                   </label>
                   <div>
-                    <button
-                      aria-pressed={self?.loadout === "nova"}
-                      className={self?.loadout === "nova" ? "selected" : ""}
-                      onClick={() => configure({ loadout: "nova" })}
-                    >
-                      <b>✦ NOVA</b>
-                      <small>3-bolt spread · 8s cooldown</small>
-                    </button>
-                    <button
-                      aria-pressed={self?.loadout === "mend"}
-                      className={self?.loadout === "mend" ? "selected" : ""}
-                      onClick={() => configure({ loadout: "mend" })}
-                    >
-                      <b>✚ MEND</b>
-                      <small>Restore 30 HP · 12s cooldown</small>
-                    </button>
-                    <button
-                      aria-pressed={self?.loadout === "blink"}
-                      className={self?.loadout === "blink" ? "selected" : ""}
-                      onClick={() => configure({ loadout: "blink" })}
-                    >
-                      <b>◇ BLINK</b>
-                      <small>Teleport up to 120px · 10s cooldown</small>
-                    </button>
+                    {(Object.keys(loadouts) as LoadoutId[]).map((k) => (
+                      <button
+                        key={k}
+                        aria-pressed={self?.loadout === k}
+                        className={self?.loadout === k ? "selected" : ""}
+                        onClick={() => configure({ loadout: k })}
+                      >
+                        <b>
+                          {loadouts[k].glyph} {loadouts[k].name}
+                        </b>
+                        <small>{loadouts[k].description}</small>
+                      </button>
+                    ))}
                   </div>
                 </div>
+                {s.publicMatch && (
+                  <div className="matchmaking-status" role="status">
+                    {s.startsAt
+                      ? `MATCH STARTS IN ${Math.max(1, Math.ceil((s.startsAt - time) / 1000))}`
+                      : "QUICK PLAY · Waiting for two humans, with everyone ready."}
+                  </div>
+                )}
                 <div className="lobby-footer">
                   <div>
                     <b>
@@ -795,7 +991,9 @@ function App() {
                 </div>
                 {!host && (
                   <small className="quiet">
-                    The host starts once everyone is ready.
+                    {s.publicMatch
+                      ? "Your match starts automatically once everyone is ready."
+                      : "The host starts once everyone is ready."}
                   </small>
                 )}
               </section>
@@ -820,6 +1018,17 @@ function App() {
           )}
           <div className={`arenaWrap ${lobby ? "lobby-arena" : ""}`}>
             <div className="arena" ref={mount} />
+            {!lobby && engineLoading && (
+              <div className="engine-loading" role="status">
+                <span className="rift-spinner">✦</span> OPENING THE ARENA…
+              </div>
+            )}
+            {!lobby && engineError && (
+              <div className="engine-loading" role="alert">
+                {engineError}
+                <button onClick={() => location.reload()}>RELOAD</button>
+              </div>
+            )}
             {!lobby && (
               <>
                 <div className="kill-feed">
@@ -863,9 +1072,11 @@ function App() {
               </>
             )}
 
-            {!online && (
+            {(!online || snapshotStale) && (
               <div className="connection">
-                Connection lost. Rejoining automatically…
+                {!online
+                  ? "Connection lost. Rejoining automatically…"
+                  : "Waiting for server updates. Controls paused until snapshots return."}
               </div>
             )}
             {self?.respawn && !lobby ? (
@@ -922,20 +1133,10 @@ function App() {
                     cd: 12000,
                   },
                   {
-                    name:
-                      self?.loadout === "mend"
-                        ? "MEND"
-                        : self?.loadout === "blink"
-                          ? "BLINK"
-                          : "NOVA",
+                    name: loadouts[self?.loadout ?? "nova"].name,
                     key: "Q",
                     at: self?.special ?? 0,
-                    cd:
-                      self?.loadout === "mend"
-                        ? 12000
-                        : self?.loadout === "blink"
-                          ? 10000
-                          : 8000,
+                    cd: loadouts[self?.loadout ?? "nova"].cooldown,
                   },
                 ].map((a) => (
                   <div
@@ -978,13 +1179,7 @@ function App() {
                     <TouchButton action="shield" label="SHIELD" />
                     <TouchButton
                       action="special"
-                      label={
-                        self?.loadout === "mend"
-                          ? "MEND"
-                          : self?.loadout === "blink"
-                            ? "BLINK"
-                            : "NOVA"
-                      }
+                      label={loadouts[self?.loadout ?? "nova"].name}
                     />
                   </div>
                 </div>
@@ -1031,18 +1226,21 @@ function App() {
               dashes (5s); E shields for 1.5s (12s). Q fires three 15-damage
               Nova bolts (8s), heals 30 HP with Mend (12s), or Blinks up to
               120px toward aim without crossing walls (10s). Shields reflect
-              bolts. Basic bolts deal 20 damage. No friendly fire.
+              bolts. Basic bolts deal 20 damage. Pulse deals 20 damage in a
+              120px radius and pushes enemies (9s). Shields block Pulse. No
+              friendly fire.
             </p>
           </div>
           <div>
             <h3>03 / Take the rift</h3>
             <p>
-              Crystal Clash: crystals +1, KOs +3, target 20. Knockout: KOs +3,
-              target 15. Rift Control: hold center uncontested for +1 per
-              second, target 40. Highest score at 3 minutes wins; ties get
-              30-second sudden death with a shrinking boundary every 5s (25
-              damage/second outside). A team absent for 15 seconds forfeits.
-              Still tied? Draw. Respawn in 3 seconds.
+              Crystal Clash: crystals +1, KOs +3, target 20. Blitz: 90 seconds,
+              crystals +2, target 30. Knockout: KOs +3, target 15. Rift Control:
+              hold center uncontested for +1 per second, target 40. Highest
+              score at 3 minutes wins; ties get 30-second sudden death with a
+              shrinking boundary every 5s (25 damage/second outside). A team
+              absent for 15 seconds forfeits. Still tied? Draw. Respawn in 3
+              seconds.
             </p>
           </div>
           <div>
@@ -1059,7 +1257,7 @@ function App() {
         <span>
           ✦ PIXEL RIFT <em>ARENA CLASH</em>
         </span>
-        <span>BUILT FOR FRIENDLY RIVALRIES</span>
+        <span>BUILT FOR FRIENDLY RIVALRIES · v{RELEASE_VERSION}</span>
       </footer>
     </main>
   );
