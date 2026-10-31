@@ -1,3 +1,4 @@
+import { setupTutorial, skipTutorialStep } from "./tutorial.js";
 import { isBotLevel } from "./bot-config.js";
 import { FaultLink } from "./network.js";
 import compression from "compression";
@@ -183,6 +184,11 @@ export async function createGameServer(
       if (data.matchmake && !limits.allow("quick", 0.5, 5))
         return ack({ error: "Too many Quick Play attempts" });
       if (room) return ack({ error: "Already in a room" });
+      if (
+        data.tutorial === true &&
+        (data.matchmake === true || data.create !== true)
+      )
+        return ack({ error: "Tutorial must be a private creation" });
       const name =
         String(data?.name || "")
           .trim()
@@ -245,6 +251,7 @@ export async function createGameServer(
             arena: "astral",
             mode: quick ? chosenMode : "crystal",
             publicMatch: quick,
+            tutorial: data.tutorial === true,
             effects: [],
             scores: [0, 0],
             end: 0,
@@ -257,6 +264,10 @@ export async function createGameServer(
           rooms.set(code, room);
         } else if (!room) room = rooms.get(code);
         if (!room) return ack({ error: "Room not found" });
+        if (room.tutorial && room.players.length > 0) {
+          room = undefined;
+          return ack({ error: "Tutorial rooms cannot be joined by code" });
+        }
         if (room.players.length >= 4) {
           room = undefined;
           return ack({ error: "Room is full" });
@@ -278,6 +289,7 @@ export async function createGameServer(
       }
       const joined = room.players.find((p) => p.id === id)!;
       if (room.publicMatch && room.phase === "lobby") joined.ready = true;
+      if (room.tutorial && !room.tutorialState) setupTutorial(room, Date.now());
       joined.lastSequence = -1;
       joined.rtt = s.data.rtt;
       owners.set(id, s.id);
@@ -381,6 +393,34 @@ export async function createGameServer(
           ps.some((x) => x.team === 1)
         )
           start(room, Date.now());
+      }
+      emit(room);
+    });
+    on("tutorial", (a) => {
+      if (
+        !room?.tutorial ||
+        room.host !== id ||
+        !record(a) ||
+        !limits.allow("tutorial", 2, 4)
+      )
+        return;
+      if (a.action === "replay") setupTutorial(room, Date.now());
+      if (a.action === "skip") skipTutorialStep(room, Date.now());
+      if (
+        a.action === "choose" &&
+        room.tutorialState?.step === 0 &&
+        isClass(a.classId) &&
+        isWeapon(a.weaponId) &&
+        typeof a.loadout === "string" &&
+        Object.hasOwn(loadouts, a.loadout)
+      ) {
+        const p = room.players.find((p) => p.id === id)!;
+        p.classId = a.classId;
+        p.weaponId = a.weaponId;
+        p.loadout = a.loadout as keyof typeof loadouts;
+        p.hp = maxHealth(p);
+        p.ammo = weapons[p.weaponId].magazine;
+        skipTutorialStep(room, Date.now());
       }
       emit(room);
     });

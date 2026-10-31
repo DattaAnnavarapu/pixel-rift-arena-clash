@@ -130,6 +130,20 @@ export default class Arena extends Phaser.Scene {
     const a = arenas[state.arena ?? "astral"],
       g = this.bg;
     g.clear();
+    if (state.tutorial && state.tutorialTarget) {
+      const target = state.tutorialTarget;
+      g.lineStyle(3, 0xffed9e, 0.9);
+      g.strokeCircle(target.x, target.y, 28);
+      g.fillStyle(0xffed9e);
+      g.fillTriangle(
+        target.x - 7,
+        target.y - 43,
+        target.x + 7,
+        target.y - 43,
+        target.x,
+        target.y - 32,
+      );
+    }
     g.fillStyle(a.floor);
     g.fillRect(0, 0, 960, 600);
     // Deterministic tile details remain still while animated effects draw separately.
@@ -383,6 +397,20 @@ export default class Arena extends Phaser.Scene {
       g = this.g,
       a = arenas[state.arena ?? "astral"];
     g.clear();
+    if (state.tutorial && state.tutorialTarget) {
+      const target = state.tutorialTarget;
+      g.lineStyle(3, 0xffed9e, 0.9);
+      g.strokeCircle(target.x, target.y, 28);
+      g.fillStyle(0xffed9e);
+      g.fillTriangle(
+        target.x - 7,
+        target.y - 43,
+        target.x + 7,
+        target.y - 43,
+        target.x,
+        target.y - 32,
+      );
+    }
     if (state.phase === "overtime") {
       const b = playableBounds(state, now);
       g.fillStyle(0xf05c8c, 0.16);

@@ -2068,3 +2068,75 @@ footer em {
   touch-action: pan-y;
   overscroll-behavior: contain;
 }
+
+.first-tutorial {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid #77668f;
+}
+.first-tutorial[hidden] {
+  display: none;
+}
+.tutorial-hint {
+  position: fixed;
+  z-index: 12;
+  left: 12px;
+  bottom: 12px;
+  max-width: 420px;
+  padding: 10px;
+  background: #172137ed;
+  border: 1px solid #d9c394;
+  font: 11px/1.4 monospace;
+  touch-action: pan-y;
+}
+.tutorial-hint p {
+  margin: 5px 0;
+}
+.tutorial-hint button {
+  min-height: 36px;
+  padding: 5px;
+  font-size: 9px;
+  margin: 3px;
+}
+.tutorial-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+.tutorial-choices select {
+  max-width: 110px;
+  font-size: 10px;
+  padding: 4px;
+}
+.in-match[data-tutorial-step="1"] .move-stick,
+.in-match[data-tutorial-step="2"] .aim-stick,
+.in-match[data-tutorial-step="3"] .aim-stick,
+.in-match[data-tutorial-step="4"] .touch-dash,
+.in-match[data-tutorial-step="5"] .touch-shield,
+.in-match[data-tutorial-step="6"] .touch-special {
+  box-shadow: 0 0 0 3px #ffe59d;
+}
+@media (max-width: 700px) {
+  .tutorial-hint {
+    bottom: 202px;
+    left: 8px;
+    right: 8px;
+    max-width: none;
+    font-size: 9px;
+  }
+  .first-tutorial {
+    flex-wrap: wrap;
+    font-size: 11px;
+  }
+}
+@media (orientation: landscape) and (max-height: 600px) and (max-width: 1100px) {
+  .tutorial-hint {
+    left: 130px;
+    right: 160px;
+    bottom: 42px;
+    max-width: none;
+    font-size: 9px;
+  }
+}

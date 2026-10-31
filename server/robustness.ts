@@ -20,7 +20,7 @@ export class RateLimit {
 export function validEnter(a: unknown) {
   return (
     record(a) &&
-    ["create", "matchmake"].every(
+    ["create", "matchmake", "tutorial"].every(
       (k) => a[k] === undefined || typeof a[k] === "boolean",
     ) &&
     (a.name === undefined ||

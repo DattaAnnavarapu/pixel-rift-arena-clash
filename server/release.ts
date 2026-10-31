@@ -10,6 +10,7 @@ export function findPublicRoom(
     .filter(
       (r) =>
         r.publicMatch &&
+        !r.tutorial &&
         r.mode === mode &&
         r.phase === "lobby" &&
         r.players.length < 4 &&

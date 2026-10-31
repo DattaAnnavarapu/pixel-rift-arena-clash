@@ -95,3 +95,8 @@ Manual acceptance before deployment/release:
 
 ## Stabilization Phase 5 manual checks
 - [ ] Host difficulty changes, all arenas/corner routes, broken walls, hidden enemies, bots vs humans and CPU/tick metrics with four bots. No general balance guarantee follows from seeded duels.
+
+## Stabilization Phase 6 manual checks
+- [ ] New-browser first-run prompt and No thanks persistence; tutorial replay after completion.
+- [ ] Complete every step with desktop and physical touch controls, all specials/weapons, reflection misses, reload, all four pickups and fight/respawn.
+- [ ] Check hint placement, ring visibility, touch highlights, reduced motion, skip/replay/leave and no browser-stat changes. Full hardware tutorial completion is NOT yet certified.

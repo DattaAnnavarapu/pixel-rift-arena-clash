@@ -38,6 +38,7 @@ export function updateProgress(
 ): Progress {
   const p = s.players.find((p) => p.id === id);
   if (
+    s.tutorial ||
     !p ||
     p.bot ||
     !s.matchId ||

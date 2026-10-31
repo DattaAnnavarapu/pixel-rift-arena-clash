@@ -1,3 +1,4 @@
+import { updateTutorial, type TutorialState } from "./tutorial.js";
 import type { BotLevel } from "./bot-config.js";
 import {
   weapons,
@@ -331,6 +332,9 @@ export type Effect = {
   at: number;
   value?: number;
   weaponId?: WeaponId;
+  actor?: string;
+  target?: string;
+  pickupKind?: PickupKind;
 };
 export type Room = {
   code: string;
@@ -366,6 +370,9 @@ export type Room = {
   finishReason?: string;
   matchId?: string;
   publicMatch?: boolean;
+  tutorial?: boolean;
+  tutorialState?: TutorialState;
+  tutorialTarget?: { x: number; y: number };
   botLevel?: BotLevel;
   botSeed?: number;
   startsAt?: number;
@@ -474,13 +481,14 @@ export function configure(
 function effect(
   r: Room,
   kind: Effect["kind"],
-  p: { x: number; y: number; team: number; weaponId?: WeaponId },
+  p: { x: number; y: number; team: number; weaponId?: WeaponId; id?: string },
   at: number,
   value?: number,
 ) {
   r.effects ??= [];
   r.eventId = (r.eventId ?? 0) + 1;
-  r.effects.push({
+  const event: Effect = {
+    actor: p.id,
     id: r.eventId,
     kind,
     x: p.x,
@@ -489,7 +497,9 @@ function effect(
     at,
     value,
     weaponId: kind === "shot" || kind === "reload" ? p.weaponId : undefined,
-  });
+  };
+  r.effects.push(event);
+  return event;
 }
 export function start(r: Room, now: number) {
   r.arena ??= "astral";
@@ -590,7 +600,10 @@ function damage(
   if (rifle && p.hp === maxHealth(p) && amount >= p.hp) amount = p.hp - 1;
   if (amount <= 0) return;
   p.hp = Math.max(0, p.hp - amount);
-  effect(r, "hit", p, now, amount);
+  Object.assign(effect(r, "hit", p, now, amount), {
+    actor: owner,
+    target: p.id,
+  });
   if (p.hp === 0) {
     p.respawn = now + 3000;
     p.deaths++;
@@ -620,7 +633,7 @@ export function tick(r: Room, now: number, dt: number) {
   const absent = [0, 1].filter(
     (t) => r.emptySince![t] !== null && now - r.emptySince![t]! >= 15000,
   );
-  if (absent.length) {
+  if (absent.length && !r.tutorial) {
     finish(r);
     r.finishReason = "forfeit";
     r.winner =
@@ -833,7 +846,7 @@ export function tick(r: Room, now: number, dt: number) {
           p.absorptionUntil = now + pickups.shield.duration;
         }
         pickup.availableAt = now + PICKUP_RESPAWN;
-        effect(r, "pickup", p, now);
+        Object.assign(effect(r, "pickup", p, now), { pickupKind: pickup.kind });
       }
     }
     const hazard = (arenas[arena].hazards ?? []).find(
@@ -851,7 +864,7 @@ export function tick(r: Room, now: number, dt: number) {
       if (Math.hypot(c.x - p.x, c.y - p.y) < 26) {
         r.scores[p.team] += mode === "blitz" ? 2 : 1;
         p.collected++;
-        effect(r, "crystal", { ...c, team: p.team }, now);
+        effect(r, "crystal", { ...c, team: p.team, id: p.id }, now);
         return false;
       }
       return true;
@@ -971,6 +984,10 @@ export function tick(r: Room, now: number, dt: number) {
     }
   }
   // Simultaneous scores in overtime must produce a leader, rather than an arbitrary team winning.
+  if (r.tutorial) {
+    updateTutorial(r, now);
+    return;
+  }
   const changed = before.some((v, i) => v !== r.scores[i]);
   if (
     r.scores.some((s) => s >= modes[mode].target) ||

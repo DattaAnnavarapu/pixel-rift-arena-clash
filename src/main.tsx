@@ -1,3 +1,4 @@
+import { TutorialRound } from "./ui/TutorialRound";
 import { classes, weapons, maxHealth } from "../server/combat";
 import { CombatSelection } from "./ui/CombatSelection";
 import React, { useEffect, useRef, useState } from "react";
@@ -343,7 +344,12 @@ function App() {
     pauseInput(!!panel);
     return () => pauseInput(false);
   }, [panel]);
-  function join(create: boolean, resume = false, matchmake = false) {
+  function join(
+    create: boolean,
+    resume = false,
+    matchmake = false,
+    tutorial = false,
+  ) {
     unlock();
     setPending(true);
     socket.timeout(8000).emit(
@@ -353,6 +359,7 @@ function App() {
         code: new URLSearchParams(location.search).get("room") || code,
         create,
         matchmake,
+        tutorial: tutorial || undefined,
         mode: quickMode,
         protocol: PROTOCOL_VERSION,
         token: resume ? sessionStorage.getItem("rift-token") : undefined,
@@ -429,6 +436,11 @@ function App() {
           setProgress(next);
         }
       } catch {}
+      if (r.tutorial && (r.tutorialState?.step ?? 0) >= 10) {
+        try {
+          localStorage.setItem("rift-tutorial-done", "yes");
+        } catch {}
+      }
       receive(r);
       setS(r);
     };
@@ -613,6 +625,7 @@ function App() {
   }
   return (
     <main
+      data-tutorial-step={s?.tutorial ? s.tutorialState?.step : undefined}
       className={s && !lobby ? "in-match" : ""}
       data-left={settings.leftHanded === true}
       style={
@@ -711,6 +724,35 @@ function App() {
       )}
       {!s ? (
         <>
+          <aside
+            className="first-tutorial"
+            hidden={
+              localStorage.getItem("rift-tutorial-done") === "yes" ||
+              localStorage.getItem("rift-tutorial-dismissed") === "yes"
+            }
+          >
+            <b>New here? Try the guided tutorial (about 2 minutes).</b>
+            <button onClick={() => join(true, false, false, true)}>
+              TUTORIAL
+            </button>
+            <button
+              onClick={(e) => {
+                try {
+                  localStorage.setItem("rift-tutorial-dismissed", "yes");
+                } catch {}
+                e.currentTarget.parentElement!.hidden = true;
+              }}
+            >
+              NO THANKS
+            </button>
+          </aside>
+          <button
+            className="tutorial-launch"
+            onClick={() => join(true, false, false, true)}
+            disabled={!online || pending}
+          >
+            PLAY TUTORIAL
+          </button>
           <section className="hero">
             <div className="hero-copy">
               <span className="eyebrow">THE RIFT IS OPEN · 2–4 PLAYERS</span>
@@ -852,6 +894,14 @@ function App() {
         </>
       ) : (
         <>
+          {s.tutorial && (
+            <TutorialRound
+              s={s}
+              now={time}
+              onAction={(a) => socket.emit("tutorial", a)}
+              onLeave={leave}
+            />
+          )}
           {!lobby && (
             <nav className="mobile-match-bar" aria-label="Match controls">
               <span>
@@ -1174,7 +1224,13 @@ function App() {
                 <strong>{s.scores[0]}</strong>
               </div>
               <div className="score-clock">
-                <b>{s.phase === "overtime" ? "SUDDEN DEATH" : timer}</b>
+                <b>
+                  {s.tutorial
+                    ? "TRAINING"
+                    : s.phase === "overtime"
+                      ? "SUDDEN DEATH"
+                      : timer}
+                </b>
                 <small>
                   {rule.description} · TO {rule.target}
                 </small>

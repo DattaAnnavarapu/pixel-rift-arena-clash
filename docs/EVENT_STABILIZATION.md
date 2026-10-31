@@ -31,3 +31,9 @@ Baseline: 70 tests, 1.2.0-alpha.1, protocol 3. New wire fields remain optional. 
 2. Changes: one difficulty table, host whitelist/config UI, private training tier, varied hard kits, cached A* paths using shared collision, seeded decisions. Bots use ordinary gameplay rules. Adaptive and per-bot UI options are not enabled.
 3. Tests: 84 tests plus build/release pass. Twenty seeded runs per matchup: Hard/Normal 19–1; Normal/Easy 20–0; Hard/Easy 20–0. Whitelist/path safety tests pass. These are controlled same-class duels, not live-player statistics.
 4. Manual: path behavior on all terrain, perception of difficulty and live server CPU require checks. A* uses static wall occupancy, not tactical hazard avoidance.
+
+## Phase 6 — Guided training round
+1. Findings: the existing tutorial was a field guide, not a round; hit/pickup events lacked actor/type attribution for reliable progress.
+2. Changes: optional private tutorial room/state, server-driven event progress/targets, training dummies, harmless reflection emitter, final Easy bot, no ending/forfeit/reward flow, first-run/replay/skip UI and touch-specific hints/highlights. New event fields are optional protocol-3 extensions.
+3. Tests: 88 tests plus build/release pass. Fake-context tests cover all director transitions and wrong actors, stuck/touch wording, room isolation/no stats/no ending, and actual socket code-join rejection/Quick Play isolation.
+4. Manual: full hardware completion, hint ergonomics and all kit choices remain unverified. Skip is deliberately permitted, yields no rewards, and is not achievement verification. The two-minute estimate is not certified.
