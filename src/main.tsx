@@ -50,7 +50,10 @@ const socket = io({
   reconnectionDelayMax: 4000,
 });
 function Stick({ aim = false }: { aim?: boolean }) {
+  const activePointer = useRef<number | null>(null);
   function release(e: React.PointerEvent) {
+    if (activePointer.current !== e.pointerId) return;
+    activePointer.current = null;
     if (!aim) {
       touch.move = false;
       input.x = input.y = 0;
@@ -80,13 +83,16 @@ function Stick({ aim = false }: { aim?: boolean }) {
       className="stick"
       aria-label={aim ? "Aim joystick" : "Movement joystick"}
       onPointerDown={(e) => {
+        if (activePointer.current !== null) return;
+        activePointer.current = e.pointerId;
+        e.preventDefault();
         unlock();
         if (e.pointerType === "touch") touch.aim = true;
         e.currentTarget.setPointerCapture(e.pointerId);
         move(e);
       }}
       onPointerMove={(e) => {
-        if (e.buttons) move(e);
+        if (activePointer.current === e.pointerId) move(e);
       }}
       onPointerUp={release}
       onPointerCancel={release}

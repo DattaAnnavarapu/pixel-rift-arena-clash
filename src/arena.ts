@@ -91,7 +91,9 @@ export default class Arena extends Phaser.Scene {
         queueAction("fire");
       }
     });
-    this.input.on("pointerup", () => (input.fire = false));
+    this.input.on("pointerup", (p: Phaser.Input.Pointer) => {
+      if (!p.wasTouch) input.fire = false;
+    });
     this.events.once("shutdown", () => {
       this.labels.clear();
       input.fire = false;

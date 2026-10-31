@@ -921,7 +921,7 @@ footer em {
 .touch-special {
   border-color: #b89ade;
 }
-@media (pointer: coarse) {
+@media (any-pointer: coarse), (max-width: 700px) {
   .touch {
     display: flex;
   }
@@ -1663,4 +1663,18 @@ footer em {
   .rift-spinner {
     animation: none;
   }
+}
+
+/* Keep twin-stick controls inside narrow phones and device safe areas. */
+@media (max-width: 700px) {
+  .touch { gap: 8px; padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+  .touch .stick { flex: 0 0 68px; width: 68px; height: 68px; }
+  .touch .stick i { left: 15px; top: 15px; }
+  .touchright { gap: 6px; min-width: 0; }
+  .touch-buttons { gap: 4px; }
+  .touch-buttons button { min-width: 44px; min-height: 44px; padding: 8px 6px; }
+  .in-match .abilities { flex-wrap: wrap; }
+}
+@media (max-height: 550px) and (orientation: landscape) {
+  .in-match .touch { left: max(12px, env(safe-area-inset-left)); right: max(12px, env(safe-area-inset-right)); bottom: max(12px, env(safe-area-inset-bottom)); }
 }
