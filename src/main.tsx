@@ -694,6 +694,9 @@ function App() {
   const left = Math.max(0, (s?.end ?? 0) - time),
     timer = `${Math.floor(left / 60000)}:${String(Math.floor(left / 1000) % 60).padStart(2, "0")}`;
   function leave() {
+    resumeController.current?.abort();
+    resumeController.current = null;
+    setReconnecting(false);
     resetInput();
     socket.timeout(3000).emit("leave", () => {
       sessionStorage.removeItem("rift-token");
@@ -997,9 +1000,13 @@ function App() {
                 FIRST TIME? LEARN TO PLAY →
               </button>
               {error && (
-                <p className="error" role="alert">
-                  {error}
-                </p>
+                <div role="alert">
+                  <p className="error">{error}</p>
+                  {online && sessionStorage.getItem("rift-token") && (
+                    <button disabled={pending || reconnecting}
+                      onClick={() => join(false, true)}>RETRY RECONNECT</button>
+                  )}
+                </div>
               )}
             </div>
           </section>
