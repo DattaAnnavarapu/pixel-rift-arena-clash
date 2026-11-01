@@ -190,7 +190,7 @@ export async function createGameServer(
       if (data.matchmake && !limits.allow("quick", 0.5, 5))
         return ack({ error: "Too many Quick Play attempts" });
       if (room) return ack({ error: "Already in a room" });
-      if (data.practice === true && (data.create !== true || data.matchmake === true || data.tutorial === true))
+      if (data.practice === true && (data.create !== true || data.matchmake === true || data.tutorial === true || !!data.token))
         return ack({ error: "Practice requires a private room" });
       if (
         data.tutorial === true &&
