@@ -9,7 +9,8 @@
     "start": "node build/server/start.js",
     "test": "node --import tsx --test tests/*.test.ts",
     "release:check": "npm test && npm run build && node --import tsx scripts/production-smoke.ts && node --import tsx scripts/compiled-smoke.ts",
-    "test:high-ping": "node --import tsx scripts/high-ping-smoke.ts"
+    "test:high-ping": "node --import tsx scripts/high-ping-smoke.ts",
+    "event:check": "node --import tsx scripts/event-check.ts"
   },
   "dependencies": {
     "compression": "^1.8.2",
