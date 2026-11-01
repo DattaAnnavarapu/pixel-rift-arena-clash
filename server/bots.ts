@@ -114,16 +114,27 @@ export function driveBots(r: Room, now: number) {
         (a, b) =>
           Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y),
       )[0];
+    const flag = r.flags?.[1 - p.team],
+      own = r.flags?.[p.team];
     const target =
-      usesCrystals(r.mode ?? "crystal") && r.crystals.length
-        ? r.crystals.reduce((a, b) =>
-            Math.hypot(a.x - p.x, a.y - p.y) < Math.hypot(b.x - p.x, b.y - p.y)
-              ? a
-              : b,
-          )
-        : r.mode === "knockout" && enemy
-          ? enemy
-          : { x: 480, y: 300 };
+      r.mode === "ctf" && flag && own
+        ? flag.carrier === p.id
+          ? own.carrier || own.droppedAt !== undefined
+            ? own
+            : { x: p.team ? 870 : 90, y: 300 }
+          : own.carrier || own.droppedAt !== undefined
+            ? own
+            : flag
+        : usesCrystals(r.mode ?? "crystal") && r.crystals.length
+          ? r.crystals.reduce((a, b) =>
+              Math.hypot(a.x - p.x, a.y - p.y) <
+              Math.hypot(b.x - p.x, b.y - p.y)
+                ? a
+                : b,
+            )
+          : r.mode === "knockout" && enemy
+            ? enemy
+            : { x: 480, y: 300 };
     const angle = Math.atan2(target.y - p.y, target.x - p.x),
       distance = enemy ? Math.hypot(enemy.x - p.x, enemy.y - p.y) : 1000;
     let direction =

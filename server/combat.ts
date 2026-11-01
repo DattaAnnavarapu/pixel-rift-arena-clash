@@ -3,6 +3,8 @@ export const classes = {
   assault: { name: "Assault", hp: 100, speed: 175, damage: 1, glyph: "◆" },
   tank: { name: "Tank", hp: 140, speed: 145, damage: 0.85, glyph: "▣" },
   scout: { name: "Scout", hp: 80, speed: 210, damage: 0.9, glyph: "»" },
+  medic: { name: "Medic", hp: 110, speed: 170, damage: 0.9, glyph: "✚" },
+  ranger: { name: "Ranger", hp: 90, speed: 195, damage: 1, glyph: "◇" },
 } as const;
 export type ClassId = keyof typeof classes;
 /** Event playtest cadence switches, in milliseconds. Change one value per weapon.
@@ -45,6 +47,26 @@ export const weapons = {
     speed: 720,
     life: 704 / 720,
     spread: [0],
+  },
+  repeater: {
+    name: "Arc Repeater",
+    damage: 12,
+    interval: 400,
+    magazine: 14,
+    reload: 1400,
+    speed: 510,
+    life: 0.85,
+    spread: [0],
+  },
+  scatter: {
+    name: "Twin Scatter",
+    damage: 12,
+    interval: 1000,
+    magazine: 6,
+    reload: 1500,
+    speed: 470,
+    life: 0.7,
+    spread: [-0.09, 0.09],
   },
 } as const;
 export type WeaponId = keyof typeof weapons;

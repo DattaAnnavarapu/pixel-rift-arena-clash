@@ -1,9 +1,14 @@
 import { loadouts, type Snapshot } from "../server/game";
 export type Progress = {
+  xp?: number;
+  matches?: number;
   wins: number;
   kos: number;
   loadouts: Record<string, number>;
-  seen: Record<string, { kos: number; won: boolean; played: boolean }>;
+  seen: Record<
+    string,
+    { kos: number; won: boolean; played: boolean; rewarded?: boolean }
+  >;
 };
 export function emptyProgress(): Progress {
   return {
@@ -26,6 +31,9 @@ export function readProgress(value: string | null): Progress {
       !p.seen
     )
       return emptyProgress();
+    p.xp = Number.isSafeInteger(p.xp) && p.xp >= 0 ? p.xp : 0;
+    p.matches =
+      Number.isSafeInteger(p.matches) && p.matches >= 0 ? p.matches : 0;
     return p;
   } catch {
     return emptyProgress();
@@ -61,6 +69,19 @@ export function updateProgress(
   ) {
     entry.won = true;
     next.wins++;
+  }
+  if (
+    s.phase === "finished" &&
+    !entry.rewarded &&
+    s.finishReason !== "forfeit"
+  ) {
+    entry.rewarded = true;
+    next.matches = (next.matches ?? 0) + 1;
+    next.xp =
+      (next.xp ?? 0) +
+      100 +
+      (entry.won ? 50 : 0) +
+      Math.min(100, p.kills * 5 + (p.objectives ?? 0) * 5);
   }
   next.seen[key] = entry;
   const keys = Object.keys(next.seen);

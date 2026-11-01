@@ -19,7 +19,7 @@ test("duplicate top-level tutorial launch is removed while guided entry remains"
   assert.doesNotMatch(ui, /className="tutorial-launch"/);
   assert.match(ui, /className="first-tutorial"/);
   assert.match(ui, /onClick=\{\(\) => join\(true, false, false, true\)\}/);
-  assert.match(css, /\.join-card \.practice-level \{ display: block; margin-top: 18px; \}/);
+  assert.match(css.replace(/\s+/g," "), /\.join-card \.practice-level \{ display: block; margin-top: 18px; \}/);
 });
 
 test("rotation suggestion is dismissible and only styled for portrait mobile", () => {

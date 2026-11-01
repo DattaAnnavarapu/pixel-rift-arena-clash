@@ -65,9 +65,10 @@ export function CombatSelection({
         </div>
       </fieldset>
       <p>
-        Class, weapon and special are independent choices. Shield pickups absorb
-        35 damage for up to 5s; E shield still reflects bolts. Health +35; speed
-        ×1.4 and damage ×2 last 5s. Pickups return after 15s.
+        Medic + Mend also heals teammates within 100px. Ranger trades armor for
+        mobility. Class, weapon and special are independent choices. Shield
+        pickups absorb 35 damage for up to 5s; E shield still reflects bolts.
+        Health +35; speed ×1.4 and damage ×2 last 5s. Pickups return after 15s.
       </p>
     </div>
   );

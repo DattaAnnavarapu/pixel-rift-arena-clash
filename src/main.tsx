@@ -44,6 +44,7 @@ import {
   updateMusic,
   setVolume,
 } from "./audio";
+import { Progression, Contributions, rewards } from "./ui/Expansion";
 import { readProgress, updateProgress, favorite } from "./progress";
 import { PROTOCOL_VERSION, RELEASE_VERSION } from "../server/release";
 import {
@@ -62,7 +63,13 @@ const socket = io({
   reconnectionDelay: 500,
   reconnectionDelayMax: 4000,
 });
-function Stick({ aim = false, sensitivity = 1 }: { aim?: boolean; sensitivity?: number }) {
+function Stick({
+  aim = false,
+  sensitivity = 1,
+}: {
+  aim?: boolean;
+  sensitivity?: number;
+}) {
   const activePointer = useRef<number | null>(null);
   const stickRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -72,8 +79,7 @@ function Stick({ aim = false, sensitivity = 1 }: { aim?: boolean; sensitivity?: 
       if (aim) {
         touch.firing = false;
         touch.aim = false;
-      }
-      else {
+      } else {
         touch.move = false;
         input.x = input.y = 0;
       }
@@ -92,7 +98,10 @@ function Stick({ aim = false, sensitivity = 1 }: { aim?: boolean; sensitivity?: 
   function release(e: React.PointerEvent) {
     if (activePointer.current !== e.pointerId) return;
     activePointer.current = null;
-    if (aim) { touch.firing = false; touch.aim = false; }
+    if (aim) {
+      touch.firing = false;
+      touch.aim = false;
+    }
     if (!aim) {
       touch.move = false;
       input.x = input.y = 0;
@@ -327,10 +336,13 @@ function ArenaPreview({ arena = "astral" }: { arena?: ArenaId }) {
 }
 function InviteQRCode({ url }: { url: string }) {
   const matrix = React.useMemo(() => qrMatrix(url), [url]);
-  if (!matrix) return <p className="quiet">Link too long for QR. Use COPY INVITE.</p>;
-  const path = matrix.flatMap((row, y) =>
-    row.flatMap((dark, x) => dark ? [`M${x + 4} ${y + 4}h1v1h-1z`] : []),
-  ).join("");
+  if (!matrix)
+    return <p className="quiet">Link too long for QR. Use COPY INVITE.</p>;
+  const path = matrix
+    .flatMap((row, y) =>
+      row.flatMap((dark, x) => (dark ? [`M${x + 4} ${y + 4}h1v1h-1z`] : [])),
+    )
+    .join("");
   return (
     <svg
       role="img"
@@ -355,9 +367,13 @@ function App() {
     [online, setOnline] = useState(false),
     [pending, setPending] = useState(false),
     [waking, setWaking] = useState(false),
-    [rotateHintDismissed, setRotateHintDismissed] = useState(() => sessionStorage.getItem("rift-rotate-hint") === "yes"),
+    [rotateHintDismissed, setRotateHintDismissed] = useState(
+      () => sessionStorage.getItem("rift-rotate-hint") === "yes",
+    ),
     [reconnecting, setReconnecting] = useState(false),
-    [practiceLevel, setPracticeLevel] = useState<"easy" | "normal" | "hard">("normal"),
+    [practiceLevel, setPracticeLevel] = useState<"easy" | "normal" | "hard">(
+      "normal",
+    ),
     [time, setTime] = useState(Date.now()),
     [sfx, setSfx] = useState(effectsEnabled),
     [music, setMusicState] = useState(musicEnabled),
@@ -382,6 +398,9 @@ function App() {
   const [progress, setProgress] = useState(() =>
     readProgress(localStorage.getItem("rift-progress")),
   );
+  const [theme, setTheme] = useState(
+    () => localStorage.getItem("rift-theme") ?? "classic",
+  );
   const [scoreboard, setScoreboard] = useState(false);
   const mount = useRef<HTMLDivElement>(null),
     nameRef = useRef(name);
@@ -396,6 +415,7 @@ function App() {
     matchmake = false,
     tutorial = false,
     practice = false,
+    spectate = false,
   ) {
     // A resume is not a new entry: transient failures must preserve session ownership.
     if (resume) {
@@ -409,7 +429,8 @@ function App() {
       setError("");
       const request = (attemptNumber: number) =>
         new Promise<ResumeReply>((resolve, reject) => {
-          if (!socket.connected) return reject(new Error("Transport disconnected"));
+          if (!socket.connected)
+            return reject(new Error("Transport disconnected"));
           socket.timeout(attemptNumber === 0 ? 8000 : 4000).emit(
             "enter",
             {
@@ -428,7 +449,11 @@ function App() {
           );
         });
       void retryResume(request, controller.signal).then((outcome) => {
-        if (controller.signal.aborted || resumeController.current !== controller) return;
+        if (
+          controller.signal.aborted ||
+          resumeController.current !== controller
+        )
+          return;
         resumeController.current = null;
         setPending(false);
         setReconnecting(false);
@@ -451,7 +476,9 @@ function App() {
           setError(outcome.message);
         } else if (outcome.status === "unavailable") {
           // A request may have reached the server despite its lost acknowledgment.
-          setError("Connection interrupted. Session saved; retry reconnecting.");
+          setError(
+            "Connection interrupted. Session saved; retry reconnecting.",
+          );
         }
       });
       return;
@@ -469,6 +496,7 @@ function App() {
         code: new URLSearchParams(location.search).get("room") || code,
         create,
         matchmake,
+        spectate: spectate || undefined,
         tutorial: tutorial || undefined,
         practice: practice || undefined,
         botLevel: practice ? practiceLevel : undefined,
@@ -478,14 +506,25 @@ function App() {
       (err: any, r: any) => {
         setPending(false);
         if (err || r?.error) {
-          setError(err ? "Server is taking a moment. Please try again." : r.error);
+          setError(
+            err ? "Server is taking a moment. Please try again." : r.error,
+          );
           return;
         }
         sequence.current = 0;
         identify(r.id);
         setId(r.id);
-        sessionStorage.setItem("rift-token", r.token);
-        localStorage.setItem("rift-name", nameRef.current || localStorage.getItem("rift-name") || "Rifter");
+        if (r.spectating) {
+          sessionStorage.removeItem("rift-token");
+          sessionStorage.setItem("rift-watch", r.code);
+        } else {
+          sessionStorage.removeItem("rift-watch");
+          sessionStorage.setItem("rift-token", r.token);
+        }
+        localStorage.setItem(
+          "rift-name",
+          nameRef.current || localStorage.getItem("rift-name") || "Rifter",
+        );
         history.replaceState({}, "", `?room=${r.code}`);
         setError("");
       },
@@ -500,6 +539,8 @@ function App() {
       setWaking(false);
       setOnline(true);
       if (sessionStorage.getItem("rift-token")) join(false, true);
+      else if (sessionStorage.getItem("rift-watch"))
+        join(false, false, false, false, false, true);
     };
     const hello = (r: { protocol: number; instance?: string }) => {
       setServerId(r.instance ?? "unknown");
@@ -527,7 +568,12 @@ function App() {
       resetInput();
     };
     const snapshot = (r: Snapshot) => {
-      if (!me || !r.players.some((p) => p.id === me)) return;
+      if (
+        !me ||
+        (!r.players.some((p) => p.id === me) &&
+          !r.spectators?.some((p) => p.id === me))
+      )
+        return;
       if (state?.code === r.code && r.now < state.now) return;
       lastSnapshot.current = Date.now();
       setSnapshotStale(false);
@@ -584,6 +630,7 @@ function App() {
         socket.connected &&
         socket.io.engine?.transport.writable &&
         state &&
+        state.players.some((p) => p.id === me) &&
         ["playing", "overtime"].includes(state.phase)
       )
         socket.volatile.emit("input", inputPacket(sequence.current++));
@@ -608,6 +655,7 @@ function App() {
         !panelOpen.current &&
         e.key === "Tab" &&
         state &&
+        state.players.some((p) => p.id === me) &&
         ["playing", "overtime"].includes(state.phase)
       ) {
         e.preventDefault();
@@ -701,6 +749,7 @@ function App() {
     const t = setTimeout(() => setNotice(""), 2500);
     return () => clearTimeout(t);
   }, [notice]);
+  const watching = !!s?.spectators?.some((p) => p.id === id);
   const self = s?.players.find((p) => p.id === id),
     lobby = !!s && ["lobby", "finished"].includes(s.phase),
     host = s?.host === id,
@@ -727,6 +776,7 @@ function App() {
       setId("");
       setError("");
       setScoreboard(false);
+      sessionStorage.removeItem("rift-watch");
       history.replaceState({}, "", location.pathname);
     });
   }
@@ -751,6 +801,11 @@ function App() {
     <main
       data-tutorial-step={s?.tutorial ? s.tutorialState?.step : undefined}
       className={s && !lobby ? "in-match" : ""}
+      data-watching={watching}
+      data-theme={
+        rewards.find((r) => r.theme === theme && (progress.xp ?? 0) >= r.xp)
+          ?.theme ?? "classic"
+      }
       data-left={settings.leftHanded === true}
       data-polish={polishEnabled(sfx) ? "on" : "off"}
       style={
@@ -819,7 +874,9 @@ function App() {
         </p>
       )}
       {reconnecting && online && (
-        <p role="status" className="server-waking">Reconnecting…</p>
+        <p role="status" className="server-waking">
+          Reconnecting…
+        </p>
       )}
       {mismatch && (
         <div className="update-banner" role="alert">
@@ -907,7 +964,7 @@ function App() {
               <div className="hero-tags">
                 <span>NO LOGIN</span>
                 <span>PHONE + DESKTOP</span>
-                <span>90s–3 MINUTE ROUNDS</span>
+                <span>90s–4 MINUTE ROUNDS</span>
               </div>
               <div className="hero-map">
                 <ArenaPreview arena={previewArena} />
@@ -965,12 +1022,24 @@ function App() {
               </button>
               <label className="practice-level">
                 PRACTICE BOT DIFFICULTY
-                <select value={practiceLevel} onChange={(e) => setPracticeLevel(e.target.value as "easy" | "normal" | "hard")}>
-                  <option value="easy">Easy</option><option value="normal">Normal</option><option value="hard">Hard</option>
+                <select
+                  value={practiceLevel}
+                  onChange={(e) =>
+                    setPracticeLevel(
+                      e.target.value as "easy" | "normal" | "hard",
+                    )
+                  }
+                >
+                  <option value="easy">Easy</option>
+                  <option value="normal">Normal</option>
+                  <option value="hard">Hard</option>
                 </select>
               </label>
-              <button className="large" disabled={!online || pending || mismatch}
-                onClick={() => join(true, false, false, false, true)}>
+              <button
+                className="large"
+                disabled={!online || pending || mismatch}
+                onClick={() => join(true, false, false, false, true)}
+              >
                 PRACTICE VS BOTS <span>◎</span>
               </button>
               <button
@@ -980,9 +1049,20 @@ function App() {
               >
                 {pending ? "OPENING THE RIFT…" : "PRIVATE ROOM"} <span>↗</span>
               </button>
-              <button className="quiet-button" disabled={!online || pending || mismatch}
-                onClick={() => join(true, false, false, true)}>TUTORIAL</button>
+              <button
+                className="quiet-button"
+                disabled={!online || pending || mismatch}
+                onClick={() => join(true, false, false, true)}
+              >
+                TUTORIAL
+              </button>
               <div className="divider">ALREADY HAVE A CODE?</div>
+              <button
+                disabled={pending || code.length !== 6}
+                onClick={() => join(false, false, false, false, false, true)}
+              >
+                WATCH ROOM · SPECTATOR
+              </button>
               <div className="join-row">
                 <input
                   aria-label="Room code"
@@ -990,6 +1070,7 @@ function App() {
                   value={code}
                   onChange={(e) => {
                     setCode(e.target.value.toUpperCase());
+                    sessionStorage.removeItem("rift-watch");
                     history.replaceState({}, "", location.pathname);
                   }}
                   onKeyDown={(e) => {
@@ -1018,13 +1099,24 @@ function App() {
                 <div role="alert">
                   <p className="error">{error}</p>
                   {online && sessionStorage.getItem("rift-token") && (
-                    <button disabled={pending || reconnecting}
-                      onClick={() => join(false, true)}>RETRY RECONNECT</button>
+                    <button
+                      disabled={pending || reconnecting}
+                      onClick={() => join(false, true)}
+                    >
+                      RETRY RECONNECT
+                    </button>
                   )}
                 </div>
               )}
             </div>
           </section>
+          <Progression
+            progress={progress}
+            onEquip={(value) => {
+              setTheme(value);
+              localStorage.setItem("rift-theme", value);
+            }}
+          />
           <section className="mode-showcase release-modes">
             {(Object.keys(modes) as ModeId[]).map((m, i) => (
               <article key={m}>
@@ -1059,10 +1151,15 @@ function App() {
               {!rotateHintDismissed && (
                 <span className="rotate-hint" role="status">
                   Rotate for a bigger view
-                  <button aria-label="Dismiss rotation hint" onClick={() => {
-                    setRotateHintDismissed(true);
-                    sessionStorage.setItem("rift-rotate-hint", "yes");
-                  }}>×</button>
+                  <button
+                    aria-label="Dismiss rotation hint"
+                    onClick={() => {
+                      setRotateHintDismissed(true);
+                      sessionStorage.setItem("rift-rotate-hint", "yes");
+                    }}
+                  >
+                    ×
+                  </button>
                 </span>
               )}
               <button onClick={() => setScoreboard(!scoreboard)}>SCORES</button>
@@ -1116,7 +1213,9 @@ function App() {
               <small>{s.publicMatch ? "PUBLIC MATCH" : "PRIVATE ROOM"}</small>
               <strong>{s.code}</strong>
               <button onClick={invite}>COPY INVITE ↗</button>
-              <small className="invite-url">{location.origin}/?room={s.code}</small>
+              <small className="invite-url">
+                {location.origin}/?room={s.code}
+              </small>
               {lobby && !s.publicMatch && !s.tutorial && (
                 <details className="invite-qr-details">
                   <summary>SHOW JOIN QR</summary>
@@ -1206,6 +1305,7 @@ function App() {
                     </strong>
                   </div>
                 )}
+                {s.phase === "finished" && <Contributions s={s} />}
                 <div className="card-top">
                   <span className="eyebrow">PLAYERS</span>
                   <small>{s.players.length} / 4 CONNECTED SLOTS</small>
@@ -1292,6 +1392,7 @@ function App() {
                       )}
                       <button
                         disabled={
+                          watching ||
                           !!s.publicMatch ||
                           self?.team === t ||
                           s.players.filter((p) => p.team === t).length >= 2
@@ -1406,6 +1507,31 @@ function App() {
               </div>
             </div>
           )}
+          {watching && (
+            <div className="watch-banner" role="status">
+              SPECTATING · {s.spectators?.length ?? 0}/8 viewers · read-only ·
+              concealed players stay hidden
+              <button onClick={leave}>LEAVE SPECTATOR VIEW</button>
+            </div>
+          )}
+          {mode === "ctf" && !lobby && (
+            <div className="flag-status" role="status">
+              {s.flags?.map((f) => (
+                <span key={f.team} className={f.team ? "blue" : "red"}>
+                  {f.team ? "▲ AZURE" : "■ CRIMSON"} FLAG:{" "}
+                  {f.carrier
+                    ? `carried by ${s.players.find((p) => p.id === f.carrier)?.name ?? "player"}`
+                    : f.droppedAt !== undefined
+                      ? `DROPPED · returns in ${Math.max(0, Math.ceil((f.droppedAt + 12000 - time) / 1000))}s`
+                      : "HOME"}
+                </span>
+              ))}
+              <small>
+                Your flag must be home to capture. Touch a dropped friendly flag
+                to return it.
+              </small>
+            </div>
+          )}
           <div className={`arenaWrap ${lobby ? "lobby-arena" : ""}`}>
             <div className="arena" ref={mount} />
             {!lobby && engineLoading && (
@@ -1467,9 +1593,12 @@ function App() {
                       <thead>
                         <tr>
                           <th>PLAYER</th>
+                          <th>PING</th>
                           <th>KOs</th>
                           <th>DEATHS</th>
-                          <th>CRYSTALS</th>
+                          <th>OBJECTIVES</th>
+                          <th>DAMAGE</th>
+                          <th>HEAL</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1485,7 +1614,9 @@ function App() {
                             <td className={pingClass(p.rtt)}>{p.rtt ?? "—"}</td>
                             <td>{p.kills}</td>
                             <td>{p.deaths}</td>
-                            <td>{p.collected}</td>
+                            <td>{p.objectives ?? 0}</td>
+                            <td>{p.damageDealt ?? 0}</td>
+                            <td>{p.healingDone ?? 0}</td>
                           </tr>
                         ))}
                       </tbody>
