@@ -330,6 +330,7 @@ function App() {
     [notice, setNotice] = useState(""),
     [online, setOnline] = useState(false),
     [pending, setPending] = useState(false),
+    [waking, setWaking] = useState(false),
     [time, setTime] = useState(Date.now()),
     [sfx, setSfx] = useState(effectsEnabled),
     [music, setMusicState] = useState(musicEnabled),
@@ -409,7 +410,11 @@ function App() {
     );
   }
   useEffect(() => {
+    const wakeTimer = window.setTimeout(() => {
+      if (!socket.connected) setWaking(true);
+    }, 3500);
     const connected = () => {
+      setWaking(false);
       setOnline(true);
       if (sessionStorage.getItem("rift-token")) join(false, true);
     };
@@ -431,6 +436,7 @@ function App() {
     socket.on("hello", hello);
     socket.on("server-closing", serverClosing);
     const disconnected = () => {
+      setWaking(true);
       setOnline(false);
       resetInput();
     };
@@ -533,6 +539,7 @@ function App() {
     };
     document.addEventListener("visibilitychange", visibility);
     return () => {
+      window.clearTimeout(wakeTimer);
       clearInterval(timer);
       clearInterval(ping);
       socket.off("probe", probe);
@@ -712,6 +719,11 @@ function App() {
           </button>
         </nav>
       </header>
+      {waking && !online && (
+        <p role="status" className="server-waking">
+          Server is waking up. Free hosting can take a moment; this page will reconnect automatically.
+        </p>
+      )}
       {mismatch && (
         <div className="update-banner" role="alert">
           A new game version is available.{" "}
