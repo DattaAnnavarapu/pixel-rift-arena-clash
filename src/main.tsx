@@ -1,4 +1,5 @@
 import { ActionLatch } from "./action-latch";
+import { polishEnabled } from "./polish";
 import { inviteUrl, qrMatrix, QR_SIZE } from "./invite-qr";
 import { retryResume, type ResumeReply } from "./resume";
 import { emotes, teamMarkers } from "../server/social";
@@ -751,6 +752,7 @@ function App() {
       data-tutorial-step={s?.tutorial ? s.tutorialState?.step : undefined}
       className={s && !lobby ? "in-match" : ""}
       data-left={settings.leftHanded === true}
+      data-polish={polishEnabled(sfx) ? "on" : "off"}
       style={
         {
           "--stick-size": `${settings.stickSize ?? 104}px`,
