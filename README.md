@@ -22,7 +22,7 @@ A 2–4-player, no-login team arena game built with React 19, Phaser 3, TypeScri
 
 ## v1.2 event candidate — 1.2.0-alpha.2
 
-This branch adds stability, high-ping transport tools, mobile settings, classes, weapons, four pickup types, bot difficulty, guided training and combat feedback. See [the phase-by-phase findings and acceptance log](docs/EVENT_STABILIZATION.md). It is a development preview, not the full v1.2 release. The architecture review, implementation plan and acceptance checks are in [docs/V1_2_PHASE1_PLAN.md](docs/V1_2_PHASE1_PLAN.md).
+The event candidate adds stability, high-ping transport tools, mobile settings, classes, weapons, four pickup types, bot difficulty, guided training and combat feedback. See [the phase-by-phase findings and acceptance log](docs/EVENT_STABILIZATION.md). It is a development preview, not the full v1.2 release. The architecture review, implementation plan and acceptance checks are in [docs/V1_2_PHASE1_PLAN.md](docs/V1_2_PHASE1_PLAN.md).
 
 | Class   |  HP | Move speed | Outgoing damage |
 | ------- | --: | ---------: | --------------: |
@@ -75,11 +75,11 @@ cd pixel-rift-arena-clash
 code .
 ```
 
-3. **Switch to the improved version** (the changes are in the feature branch until the pull request is merged):
+3. **Use the released main branch**:
 
 ```powershell
 git fetch origin
-git switch feature/event-stabilization
+git switch main
 ```
 
 4. Check that Node.js and npm work, then install dependencies:
@@ -108,7 +108,7 @@ Open the game in two or more browser tabs/windows. Create a room, copy the six-c
 
 ```powershell
 git switch feature/event-stabilization
-git pull origin feature/event-stabilization
+git pull origin main
 npm ci
 npm run dev
 ```
