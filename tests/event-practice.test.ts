@@ -32,6 +32,10 @@ test("private practice payload whitelist and quick-play isolation", async () => 
     assert.equal(room.players.filter((p) => p.bot).length, 3);
     // start() intentionally clears ready flags for the next round.
     assert.ok(room.players.some((p) => p.team === 0) && room.players.some((p) => p.team === 1));
+    const takeover = await client();
+    const denied = await enter(takeover, { create: true, practice: true, token: practice.token });
+    assert.match(denied.error, /Practice requires a private room/);
+    assert.equal(room.phase, "playing", "invalid practice request must not restart the match");
     const b = await client();
     const quick = await enter(b, { matchmake: true, mode: "crystal" });
     assert.notEqual(quick.code, practice.code);
