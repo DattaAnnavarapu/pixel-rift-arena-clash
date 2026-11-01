@@ -7,7 +7,7 @@ export function allowPolish(
   savedSafeMode: boolean,
   effectsOn: boolean,
 ): boolean {
-  return !savedSafeMode && !new URLSearchParams(query).has("safe") && effectsOn;
+  return !savedSafeMode && new URLSearchParams(query).get("safe") !== "1" && effectsOn;
 }
 
 /**
