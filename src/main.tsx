@@ -331,6 +331,7 @@ function App() {
     [online, setOnline] = useState(false),
     [pending, setPending] = useState(false),
     [waking, setWaking] = useState(false),
+    [practiceLevel, setPracticeLevel] = useState<"easy" | "normal" | "hard">("normal"),
     [time, setTime] = useState(Date.now()),
     [sfx, setSfx] = useState(effectsEnabled),
     [music, setMusicState] = useState(musicEnabled),
@@ -366,6 +367,7 @@ function App() {
     resume = false,
     matchmake = false,
     tutorial = false,
+    practice = false,
   ) {
     unlock();
     setPending(true);
@@ -377,6 +379,8 @@ function App() {
         create,
         matchmake,
         tutorial: tutorial || undefined,
+        practice: practice || undefined,
+        botLevel: practice ? practiceLevel : undefined,
         mode: quickMode,
         protocol: PROTOCOL_VERSION,
         token: resume ? sessionStorage.getItem("rift-token") : undefined,
@@ -873,6 +877,16 @@ function App() {
                 {pending ? "FINDING A RIFT…" : "QUICK PLAY"}
                 <span>⚡</span>
               </button>
+              <label className="practice-level">
+                PRACTICE BOT DIFFICULTY
+                <select value={practiceLevel} onChange={(e) => setPracticeLevel(e.target.value as "easy" | "normal" | "hard")}>
+                  <option value="easy">Easy</option><option value="normal">Normal</option><option value="hard">Hard</option>
+                </select>
+              </label>
+              <button className="large" disabled={!online || pending || mismatch}
+                onClick={() => join(true, false, false, false, true)}>
+                PRACTICE VS BOTS <span>◎</span>
+              </button>
               <button
                 className="large"
                 disabled={!online || pending || mismatch}
@@ -880,6 +894,8 @@ function App() {
               >
                 {pending ? "OPENING THE RIFT…" : "PRIVATE ROOM"} <span>↗</span>
               </button>
+              <button className="quiet-button" disabled={!online || pending || mismatch}
+                onClick={() => join(true, false, false, true)}>TUTORIAL</button>
               <div className="divider">ALREADY HAVE A CODE?</div>
               <div className="join-row">
                 <input
@@ -1001,6 +1017,7 @@ function App() {
               <small>{s.publicMatch ? "PUBLIC MATCH" : "PRIVATE ROOM"}</small>
               <strong>{s.code}</strong>
               <button onClick={invite}>COPY INVITE ↗</button>
+              <small className="invite-url">{location.origin}/?room={s.code}</small>
               <button className="quiet-button" onClick={leave}>
                 LEAVE
               </button>
