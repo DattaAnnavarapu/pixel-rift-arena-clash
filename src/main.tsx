@@ -386,10 +386,10 @@ function App() {
       setPending(true);
       setReconnecting(true);
       setError("");
-      const request = () =>
+      const request = (attemptNumber: number) =>
         new Promise<ResumeReply>((resolve, reject) => {
           if (!socket.connected) return reject(new Error("Transport disconnected"));
-          socket.timeout(8000).emit(
+          socket.timeout(attemptNumber === 0 ? 8000 : 4000).emit(
             "enter",
             {
               name: localStorage.getItem("rift-name"),
