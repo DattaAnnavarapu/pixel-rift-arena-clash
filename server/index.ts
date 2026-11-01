@@ -190,6 +190,8 @@ export async function createGameServer(
       if (data.matchmake && !limits.allow("quick", 0.5, 5))
         return ack({ error: "Too many Quick Play attempts" });
       if (room) return ack({ error: "Already in a room" });
+      if (data.practice === true && (data.create !== true || data.matchmake === true || data.tutorial === true))
+        return ack({ error: "Practice requires a private room" });
       if (
         data.tutorial === true &&
         (data.matchmake === true || data.create !== true)
@@ -296,6 +298,14 @@ export async function createGameServer(
       const joined = room.players.find((p) => p.id === id)!;
       if (room.publicMatch && room.phase === "lobby") joined.ready = true;
       if (room.tutorial && !room.tutorialState) setupTutorial(room, Date.now());
+      if (data.practice === true) {
+        room.botLevel = isBotLevel(data.botLevel) ? data.botLevel : "normal";
+        manageBots(room, id, true);
+        joined.ready = true;
+        // Server owns readiness, teams, bot assignment and match start.
+        if (room.players.some((p) => p.team === 0) && room.players.some((p) => p.team === 1))
+          start(room, Date.now());
+      }
       inputLatch.consume(joined);
       joined.lastSequence = -1;
       joined.rtt = s.data.rtt;
