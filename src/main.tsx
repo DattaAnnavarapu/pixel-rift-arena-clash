@@ -59,14 +59,17 @@ const socket = io({
   reconnectionDelay: 500,
   reconnectionDelayMax: 4000,
 });
-function Stick({ aim = false }: { aim?: boolean }) {
+function Stick({ aim = false, sensitivity = 1 }: { aim?: boolean; sensitivity?: number }) {
   const activePointer = useRef<number | null>(null);
   const stickRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const cancel = () => {
       activePointer.current = null;
       stickRef.current?.removeAttribute("style");
-      if (aim) touch.firing = false;
+      if (aim) {
+        touch.firing = false;
+        touch.aim = false;
+      }
       else {
         touch.move = false;
         input.x = input.y = 0;
@@ -86,7 +89,7 @@ function Stick({ aim = false }: { aim?: boolean }) {
   function release(e: React.PointerEvent) {
     if (activePointer.current !== e.pointerId) return;
     activePointer.current = null;
-    if (aim) touch.firing = false;
+    if (aim) { touch.firing = false; touch.aim = false; }
     if (!aim) {
       touch.move = false;
       input.x = input.y = 0;
@@ -98,7 +101,7 @@ function Stick({ aim = false }: { aim?: boolean }) {
       vector = joystickVector(
         e.clientX - r.left - r.width / 2,
         e.clientY - r.top - r.height / 2,
-        (r.width * 0.4) / (aim ? (initialSettings.aimSensitivity ?? 1) : 1),
+        (r.width * 0.4) / (aim ? sensitivity : 1),
       ),
       { x, y } = vector;
     if (aim) {
@@ -330,6 +333,8 @@ function App() {
     [notice, setNotice] = useState(""),
     [online, setOnline] = useState(false),
     [pending, setPending] = useState(false),
+    [waking, setWaking] = useState(false),
+    [practiceLevel, setPracticeLevel] = useState<"easy" | "normal" | "hard">("normal"),
     [time, setTime] = useState(Date.now()),
     [sfx, setSfx] = useState(effectsEnabled),
     [music, setMusicState] = useState(musicEnabled),
@@ -365,6 +370,7 @@ function App() {
     resume = false,
     matchmake = false,
     tutorial = false,
+    practice = false,
   ) {
     unlock();
     setPending(true);
@@ -376,6 +382,8 @@ function App() {
         create,
         matchmake,
         tutorial: tutorial || undefined,
+        practice: practice || undefined,
+        botLevel: practice ? practiceLevel : undefined,
         mode: quickMode,
         protocol: PROTOCOL_VERSION,
         token: resume ? sessionStorage.getItem("rift-token") : undefined,
@@ -409,7 +417,11 @@ function App() {
     );
   }
   useEffect(() => {
+    const wakeTimer = window.setTimeout(() => {
+      if (!socket.connected) setWaking(true);
+    }, 3500);
     const connected = () => {
+      setWaking(false);
       setOnline(true);
       if (sessionStorage.getItem("rift-token")) join(false, true);
     };
@@ -431,6 +443,7 @@ function App() {
     socket.on("hello", hello);
     socket.on("server-closing", serverClosing);
     const disconnected = () => {
+      setWaking(true);
       setOnline(false);
       resetInput();
     };
@@ -533,6 +546,7 @@ function App() {
     };
     document.addEventListener("visibilitychange", visibility);
     return () => {
+      window.clearTimeout(wakeTimer);
       clearInterval(timer);
       clearInterval(ping);
       socket.off("probe", probe);
@@ -712,6 +726,11 @@ function App() {
           </button>
         </nav>
       </header>
+      {waking && !online && (
+        <p role="status" className="server-waking">
+          Server is waking up. Free hosting can take a moment; this page will reconnect automatically.
+        </p>
+      )}
       {mismatch && (
         <div className="update-banner" role="alert">
           A new game version is available.{" "}
@@ -861,6 +880,16 @@ function App() {
                 {pending ? "FINDING A RIFT…" : "QUICK PLAY"}
                 <span>⚡</span>
               </button>
+              <label className="practice-level">
+                PRACTICE BOT DIFFICULTY
+                <select value={practiceLevel} onChange={(e) => setPracticeLevel(e.target.value as "easy" | "normal" | "hard")}>
+                  <option value="easy">Easy</option><option value="normal">Normal</option><option value="hard">Hard</option>
+                </select>
+              </label>
+              <button className="large" disabled={!online || pending || mismatch}
+                onClick={() => join(true, false, false, false, true)}>
+                PRACTICE VS BOTS <span>◎</span>
+              </button>
               <button
                 className="large"
                 disabled={!online || pending || mismatch}
@@ -868,6 +897,8 @@ function App() {
               >
                 {pending ? "OPENING THE RIFT…" : "PRIVATE ROOM"} <span>↗</span>
               </button>
+              <button className="quiet-button" disabled={!online || pending || mismatch}
+                onClick={() => join(true, false, false, true)}>TUTORIAL</button>
               <div className="divider">ALREADY HAVE A CODE?</div>
               <div className="join-row">
                 <input
@@ -989,6 +1020,7 @@ function App() {
               <small>{s.publicMatch ? "PUBLIC MATCH" : "PRIVATE ROOM"}</small>
               <strong>{s.code}</strong>
               <button onClick={invite}>COPY INVITE ↗</button>
+              <small className="invite-url">{location.origin}/?room={s.code}</small>
               <button className="quiet-button" onClick={leave}>
                 LEAVE
               </button>
@@ -1490,7 +1522,7 @@ function App() {
               <div className="touch">
                 <Stick />
                 <div className="touchright">
-                  <Stick aim />
+                  <Stick aim sensitivity={settings.aimSensitivity ?? 1} />
                   <div className="touch-buttons">
                     <TouchButton
                       action="dash"

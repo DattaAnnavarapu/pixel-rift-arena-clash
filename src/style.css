@@ -2218,3 +2218,5 @@ footer em {
 .tutorial-choices select {
   min-height: 44px;
 }
+
+.server-waking { padding: 14px 18px; border: 1px solid #e7bf68; background: #5c421d55; color: #ffe5a5; border-radius: 8px; font-size: 13px; }

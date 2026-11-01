@@ -1,10 +1,28 @@
 # Pixel Rift: Arena Clash
 
+**Event pitch:** Pixel Rift is a fast, no-login team arena clash for 2–4 players, playable in a browser on desktop or mobile. Choose Assault, Tank or Scout, equip a Blaster, Shotgun or Precision rifle, fight over crystals and map control, and outplay opponents with dash, reflective shield and a special ability. The server decides hits and scores; solo visitors can practice with bots. This is the **1.2.0-alpha.2 event candidate**, protocol **3**, not a claim of real-phone or global certification.
+
+**Live demo:** https://YOUR-RENDER-SERVICE.onrender.com (replace after verifying the deployment).
+
+### Learn to play in 30 seconds
+
+| Action | Desktop | Mobile |
+|---|---|---|
+| Move / aim | WASD or arrows / mouse | Left MOVE stick / right AIM + FIRE stick |
+| Shoot / reload | Hold left click / auto reload | Drag AIM + FIRE / auto reload |
+| Dash / reflect | Space / E | DASH / SHIELD |
+| Special | Q | NOVA / MEND / BLINK / PULSE |
+| Join | Quick Play for humans; Practice vs Bots for solo | Same menu; use Tutorial for guided training |
+
+**Screenshots:** [CSS layout verification and pending hardware checks](docs/MOBILE_CSS_QA.md). Add actual tested screenshots from the candidate build to `docs/screenshots/` before submitting; no unverified screenshots are presented as device evidence.
+
+For event operator instructions see [Event day checklist](docs/EVENT_DAY_CHECKLIST.md), [60–90s demo script](docs/DEMO_SCRIPT.md) and [uptime/backup guide](docs/EVENT_UPTIME.md).
+
 A 2–4-player, no-login team arena game built with React 19, Phaser 3, TypeScript, Node.js, Express and Socket.IO. One process serves both the client and the authoritative game server.
 
 ## v1.2 event candidate — 1.2.0-alpha.2
 
-This branch adds stability, high-ping transport tools, mobile settings, classes, weapons, four pickup types, bot difficulty, guided training and combat feedback. See [the phase-by-phase findings and acceptance log](docs/EVENT_STABILIZATION.md). It is a development preview, not the full v1.2 release. The architecture review, implementation plan and acceptance checks are in [docs/V1_2_PHASE1_PLAN.md](docs/V1_2_PHASE1_PLAN.md).
+The event candidate adds stability, high-ping transport tools, mobile settings, classes, weapons, four pickup types, bot difficulty, guided training and combat feedback. See [the phase-by-phase findings and acceptance log](docs/EVENT_STABILIZATION.md). It is a development preview, not the full v1.2 release. The architecture review, implementation plan and acceptance checks are in [docs/V1_2_PHASE1_PLAN.md](docs/V1_2_PHASE1_PLAN.md).
 
 | Class   |  HP | Move speed | Outgoing damage |
 | ------- | --: | ---------: | --------------: |
@@ -57,11 +75,11 @@ cd pixel-rift-arena-clash
 code .
 ```
 
-3. **Switch to the improved version** (the changes are in the feature branch until the pull request is merged):
+3. **Use the released main branch**:
 
 ```powershell
 git fetch origin
-git switch feature/event-stabilization
+git switch main
 ```
 
 4. Check that Node.js and npm work, then install dependencies:
@@ -90,7 +108,7 @@ Open the game in two or more browser tabs/windows. Create a room, copy the six-c
 
 ```powershell
 git switch feature/event-stabilization
-git pull origin feature/event-stabilization
+git pull origin main
 npm ci
 npm run dev
 ```
