@@ -2220,3 +2220,55 @@ footer em {
 }
 
 .server-waking { padding: 14px 18px; border: 1px solid #e7bf68; background: #5c421d55; color: #ffe5a5; border-radius: 8px; font-size: 13px; }
+
+
+/* QR is an on-demand overlay: it never changes mobile lobby or control layout. */
+.invite-qr-details {
+  grid-column: 1 / -1;
+  justify-self: end;
+  position: relative;
+  max-width: 100%;
+}
+.invite-qr-details > summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 9px 12px;
+  border: 1px solid #53617b;
+  border-radius: 6px;
+  font: 800 10px ui-monospace, monospace;
+  color: #e7ebf8;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+.invite-qr-details > summary::-webkit-details-marker { display: none; }
+.invite-qr-details > summary:focus-visible {
+  outline: 2px solid #c2a6ff;
+  outline-offset: 3px;
+}
+.invite-qr-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 5px);
+  z-index: 40;
+  padding: 10px;
+  width: 172px;
+  max-width: min(172px, 70vw);
+  background: #f9fbff;
+  color: #182036;
+  border: 1px solid #aab6cf;
+  border-radius: 8px;
+  box-shadow: 0 12px 28px #0009;
+  text-align: center;
+}
+.invite-qr-image {
+  width: 100%;
+  display: block;
+  aspect-ratio: 1 / 1;
+  image-rendering: pixelated;
+}
+.invite-qr-panel > span {
+  display: block;
+  margin-top: 6px;
+  font: 700 9px ui-monospace, monospace;
+}
