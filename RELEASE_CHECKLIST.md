@@ -2,6 +2,25 @@
 
 Current candidate: `feature/event-stabilization`, version `1.2.0-alpha.2` (event candidate). It is not merged or published automatically. Earlier v1.1 test history remains below.
 
+## Event day gate — 1.2.0-alpha.2 (protocol 3)
+
+**Automated checks on this event-polish branch: NOT RUN in the assistant environment.** Before merging, run on Node 24: `npm ci`, `npm test` (93 baseline plus new event tests), `npm run build`, `npm run release:check`; then check Prettier. Any failure blocks the candidate.
+
+- [ ] Confirm the exact GitHub commit and complete checks before approving the PR. No deployment or merge performed in this branch.
+- [ ] Run `npm run event:check -- https://YOUR-HOST.onrender.com` **after** an explicitly approved deployment but before visitors connect.
+- [ ] Verify `/ping` and `/health`: version, protocol, `ok`, errors, tick time, memory, server ID.
+- [ ] Verify a paid always-on Render plan for an uninterrupted event; current `render.yaml` is a free Ohio single instance and may sleep.
+- [ ] Capture CSS layout screenshots at 320×568, 390×844 and 844×390 from this exact build; label them browser CSS checks, not phone results.
+- [ ] Pass real Android and iOS joystick/aim/fire, left-hand, cancel/blur, fullscreen/rotation, safe-area and frame-rate checks.
+- [ ] Two real humans complete Quick Play, a private invite and a rematch; one human completes Practice vs Bots at Easy/Normal/Hard.
+- [ ] Test tutorial completion, shield reflections and damage pickup, reconnect before/after 30s, and no duplicate player after refresh.
+- [ ] Listen to all audio on device/headphones and confirm reduced-motion/particle/volume preferences.
+- [ ] Inspect live Render metrics, server wake/cold start, and confirm a verified separate backup URL or local reachable host.
+
+**Known limitations:** shield activation backdates up to 150ms but does not undo committed damage/KO; region routing disabled; cross-country, perceptual audio and sustained load not certified; rooms and reconnect tokens are process-local and reset on deploy. Quick Play is not skill-matched. A backup service cannot inherit active rooms. Phase 8 maps/modes/cosmetics remain deferred.
+
+**Release-hygiene suggestion, do NOT execute until approved:** `git tag event-candidate && git push origin event-candidate`. See [event day runbook](docs/EVENT_DAY_CHECKLIST.md), [uptime/backup](docs/EVENT_UPTIME.md), [TTK matrix](docs/EVENT_TTK.md), [mobile CSS QA](docs/MOBILE_CSS_QA.md) and [demo script](docs/DEMO_SCRIPT.md).
+
 ## Automated gate
 
 Run Node.js 24, `npm ci`, then `npm run release:check`. This runs simulation/network tests, TypeScript, the production build, and an ephemeral production HTTP/asset smoke test. The game stays on one Node process; no external database is required.
