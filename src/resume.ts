@@ -30,7 +30,7 @@ export function sleepForResume(ms: number, signal: AbortSignal): Promise<void> {
 
 /** One initial attempt and at most three retries; cancellation prevents stale completion. */
 export async function retryResume(
-  attempt: () => Promise<ResumeReply>,
+  attempt: (attemptNumber: number) => Promise<ResumeReply>,
   signal: AbortSignal,
   onRetry: (retryNumber: number, delayMs: number) => void = () => {},
   wait: (ms: number, signal: AbortSignal) => Promise<void> = sleepForResume,
@@ -38,7 +38,7 @@ export async function retryResume(
   for (let index = 0; index <= RESUME_BACKOFF_MS.length; index++) {
     if (signal.aborted) return { status: "cancelled" };
     try {
-      const reply = await attempt();
+      const reply = await attempt(index);
       if (signal.aborted) return { status: "cancelled" };
       if (typeof reply?.error === "string") {
         return { status: "rejected", message: reply.error, clearToken: isExpiredResume(reply.error) };
