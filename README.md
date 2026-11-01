@@ -1,5 +1,21 @@
 # Pixel Rift: Arena Clash
 
+## 1.3 expansion candidate — review branch
+
+This branch adds the requested expansion; it is **not yet deployed to the public Render game**. It requires **protocol 4** so older clients receive a reload prompt. The sections below describing protocol 3 and v1.2 are historical baseline notes.
+
+- **Capture the Flag:** up to 2v2, first to 3 captures or highest score after four minutes. Take the enemy flag home while your flag is at base. KOs do not score. Touch a dropped friendly flag to return it; abandoned flags return after 12 seconds. Ties get 30 seconds of overtime without shrinking away the bases. Bots pursue flags and returns.
+- **Citadel Crossing:** mirrored bases, three traversable routes and shared cover; selecting CTF selects this arena. Other modes can use it too.
+- **Spectators:** enter a room code and choose Watch Room, including during an active/full match. Eight read-only seats, separate from the four player slots. Viewers cannot change teams, loadouts, readiness or game state, and both teams' concealed players remain hidden. Watching resumes on reconnect; a full/restarted room requires rejoining. Live spectating is for friendly rooms, not anti-collusion ranked play.
+- **Results and scoreboard:** actual HP damage, restored HP from Mend, KOs, objective contributions, flag captures and returns. Objectives count crystals/control seconds/returns as 1 and flag captures as 3.
+- **New classes:** Medic (110 HP, 170 speed, 90% damage; Mend also heals teammates within 100px) and Ranger (90 HP, 195 speed, 100% damage).
+- **New weapons:** Arc Repeater (12 damage, 400ms cadence, 14 rounds) and Twin Scatter (two 12-damage pellets, 1000ms cadence, 6 rounds). All five classes and five weapons are immediately selectable. Every class/weapon combination passes the existing reference time-to-KO gate with and without a damage pickup; human balance remains a playtest task.
+- **Graphics and UI:** flag bases/carrier markers, distinct new class crests and weapon accents, live objective HUD, readable contribution tables, responsive loadout cards and selectable interface color themes.
+- **Progression:** 100 XP per completed non-forfeit round, +50 for winning, up to +100 for contributions. Levels every 250 XP; Trailblazer/Mint at 300, Flagbearer/Gold at 750 and Rift Veteran/Rose at 1500. Tutorials and spectators earn none. XP and cosmetic themes save only in this browser; they are not accounts or secure competitive records. Clearing browser storage resets progress. No combat advantage is locked behind XP.
+
+Validation and remaining manual checks: [Expansion QA](docs/EXPANSION_QA.md).
+
+
 **Pixel Rift: Arena Clash** is a free-to-try, no-login, browser-based team arena game for **2–4 players** on desktop and mobile. Choose Assault, Tank, or Scout; bring a Blaster, Shotgun, or Precision rifle; and compete for crystals, control points, and knockouts while using Dash, a reflective Shield, and special abilities. New players can learn in a guided tutorial or jump into private Practice vs Bots; friends can join by room code, invite link, or QR. A 30 Hz authoritative Node/Socket.IO server decides hits, pickups, scores, and outcomes while client-side prediction improves responsiveness. This is a **1.2.0-alpha.2 event candidate**, not a certified global-scale release.
 
 **Live game:** [PUBLIC URL] — replace this placeholder only with the tested production address before submission.

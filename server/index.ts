@@ -72,7 +72,9 @@ export async function createGameServer(
     next();
   });
   // A minimal, allocation-free response for external wake/uptime probes.
-  app.get("/ping", (_req, res) => res.status(200).type("text/plain").send("pong"));
+  app.get("/ping", (_req, res) =>
+    res.status(200).type("text/plain").send("pong"),
+  );
   app.get("/health", (_, res) =>
     res.json({
       ok: !closing,
@@ -185,6 +187,11 @@ export async function createGameServer(
       if (data?.mode !== undefined && !validMode(data.mode))
         return ack({ error: "Unknown mode" });
       if (!validEnter(data)) return ack({ error: "Invalid join payload" });
+      if (
+        data.spectate &&
+        (data.create || data.matchmake || data.practice || data.tutorial)
+      )
+        return ack({ error: "Spectate requires an existing room code" });
       if (data.create && !limits.allow("create", 0.2, 3))
         return ack({ error: "Too many room creations" });
       if (data.matchmake && !limits.allow("quick", 0.5, 5))
@@ -192,15 +199,25 @@ export async function createGameServer(
       if (room) {
         // A lost acknowledgment can make the same socket retry a successful resume.
         // Return the existing identity only when the token belongs to this socket.
-        const existing = typeof data?.token === "string" ? sessions.get(data.token) : undefined;
+        const existing =
+          typeof data?.token === "string"
+            ? sessions.get(data.token)
+            : undefined;
         if (
           existing?.code === room.code &&
           existing.id === id &&
           owners.get(id) === s.id
-        ) return ack({ id, token: data.token, code: room.code });
+        )
+          return ack({ id, token: data.token, code: room.code });
         return ack({ error: "Already in a room" });
       }
-      if (data.practice === true && (data.create !== true || data.matchmake === true || data.tutorial === true || !!data.token))
+      if (
+        data.practice === true &&
+        (data.create !== true ||
+          data.matchmake === true ||
+          data.tutorial === true ||
+          !!data.token)
+      )
         return ack({ error: "Practice requires a private room" });
       if (
         data.tutorial === true &&
@@ -266,7 +283,7 @@ export async function createGameServer(
             host: "",
             players: [],
             phase: "lobby",
-            arena: "astral",
+            arena: chosenMode === "ctf" ? "citadel" : "astral",
             mode: quick ? chosenMode : "crystal",
             publicMatch: quick,
             tutorial: data.tutorial === true,
@@ -285,6 +302,21 @@ export async function createGameServer(
         if (room.tutorial && room.players.length > 0) {
           room = undefined;
           return ack({ error: "Tutorial rooms cannot be joined by code" });
+        }
+        if (data.spectate === true) {
+          room.spectators ??= [];
+          if (room.spectators.length >= 8) {
+            room = undefined;
+            return ack({ error: "Spectator seats are full" });
+          }
+          id = randomUUID();
+          room.spectators.push({ id, name });
+          s.data.playerId = id;
+          owners.set(id, s.id);
+          s.join(room.code);
+          ack({ id, code: room.code, spectating: true });
+          emit(room);
+          return;
         }
         if (room.players.length >= 4) {
           room = undefined;
@@ -313,7 +345,10 @@ export async function createGameServer(
         manageBots(room, id, true);
         joined.ready = true;
         // Server owns readiness, teams, bot assignment and match start.
-        if (room.players.some((p) => p.team === 0) && room.players.some((p) => p.team === 1))
+        if (
+          room.players.some((p) => p.team === 0) &&
+          room.players.some((p) => p.team === 1)
+        )
           start(room, Date.now());
       }
       inputLatch.consume(joined);
@@ -337,6 +372,7 @@ export async function createGameServer(
         offlineSince.delete(id);
         const oldRoom = room;
         s.leave(oldRoom.code);
+        oldRoom.spectators = oldRoom.spectators?.filter((p) => p.id !== id);
         removePlayer(oldRoom, id, sessions);
         oldRoom.updated = Date.now();
         room = undefined;
@@ -502,6 +538,12 @@ export async function createGameServer(
       clearInterval(probeTimer);
       if (!room || closing || s.data.superseded || owners.get(id) !== s.id)
         return;
+      if (room.spectators?.some((p) => p.id === id)) {
+        room.spectators = room.spectators.filter((p) => p.id !== id);
+        owners.delete(id);
+        emit(room);
+        return;
+      }
       offlineSince.set(id, Date.now());
       const p = room.players.find((p) => p.id === id);
       if (p) {

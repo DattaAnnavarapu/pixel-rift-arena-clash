@@ -1,6 +1,6 @@
 import { modes, start, type ModeId, type Room } from "./game.js";
-export const PROTOCOL_VERSION = 3;
-export const RELEASE_VERSION = "1.2.0-alpha.2";
+export const PROTOCOL_VERSION = 4;
+export const RELEASE_VERSION = "1.3.0-alpha.1";
 export function findPublicRoom(
   rooms: Iterable<Room>,
   mode: ModeId,

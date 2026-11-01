@@ -44,154 +44,196 @@ export type ArenaData = {
   pickups?: { x: number; y: number; kind: PickupKind }[];
   spawns: { x: number; y: number }[];
 };
-export const arenas: Record<"astral" | "grove" | "ember" | "frost", ArenaData> =
-  {
-    astral: {
-      spawns: [
-        { x: 480, y: 300 },
-        { x: 180, y: 90 },
-        { x: 780, y: 510 },
-        { x: 180, y: 510 },
-        { x: 780, y: 90 },
-        { x: 380, y: 265 },
-        { x: 580, y: 335 },
-      ],
-      pads: [
-        { x: 150, y: 300, toX: 810, toY: 300 },
-        { x: 810, y: 300, toX: 150, toY: 300 },
-      ],
-      pickups: [
-        { kind: "health", x: 480, y: 140 },
-        { kind: "speed", x: 380, y: 300 },
-        { kind: "speed", x: 580, y: 300 },
-        { kind: "damage", x: 480, y: 460 },
-      ],
-      name: "Astral Keep",
-      tag: "Balanced lanes · violet stone",
-      floor: 0x151b30,
-      tile: 0x202940,
-      stone: 0x455577,
-      accent: 0xb899ff,
-      walls: [
-        { x: 230, y: 145, w: 95, h: 65 },
-        { x: 635, y: 145, w: 95, h: 65 },
-        { x: 230, y: 390, w: 95, h: 65 },
-        { x: 635, y: 390, w: 95, h: 65 },
-      ],
-    },
-    grove: {
-      spawns: [
-        { x: 480, y: 300 },
-        { x: 140, y: 80 },
-        { x: 820, y: 520 },
-        { x: 140, y: 520 },
-        { x: 820, y: 80 },
-        { x: 340, y: 230 },
-        { x: 620, y: 370 },
-      ],
-      hazards: [
-        { kind: "bush", x: 340, y: 170, w: 80, h: 90 },
-        { kind: "bush", x: 540, y: 340, w: 80, h: 90 },
-      ],
-      pickups: [
-        { kind: "health", x: 480, y: 180 },
-        { kind: "damage", x: 480, y: 420 },
-        { kind: "speed", x: 330, y: 300 },
-        { kind: "speed", x: 630, y: 300 },
-      ],
-      name: "Verdant Ruins",
-      tag: "Open center · flanking paths",
-      floor: 0x132b2b,
-      tile: 0x1a3634,
-      stone: 0x42685c,
-      accent: 0x83ebbf,
-      walls: [
-        { x: 210, y: 100, w: 65, h: 145 },
-        { x: 685, y: 355, w: 65, h: 145 },
-        { x: 210, y: 355, w: 65, h: 145 },
-        { x: 685, y: 100, w: 65, h: 145 },
-        { x: 415, y: 80, w: 130, h: 45 },
-        { x: 415, y: 475, w: 130, h: 45 },
-      ],
-    },
-    ember: {
-      spawns: [
-        { x: 480, y: 300 },
-        { x: 160, y: 130 },
-        { x: 800, y: 470 },
-        { x: 160, y: 470 },
-        { x: 800, y: 130 },
-        { x: 400, y: 220 },
-        { x: 560, y: 380 },
-      ],
-      hazards: [
-        { kind: "lava", x: 370, y: 185, w: 220, h: 18, damage: 5 },
-        { kind: "lava", x: 370, y: 397, w: 220, h: 18, damage: 5 },
-        { kind: "vent", x: 420, y: 265, w: 40, h: 70, damage: 10 },
-        { kind: "vent", x: 500, y: 265, w: 40, h: 70, damage: 10 },
-      ],
-      pickups: [
-        { kind: "health", x: 480, y: 215 },
-        { kind: "damage", x: 480, y: 385 },
-        { kind: "speed", x: 350, y: 300 },
-        { kind: "speed", x: 610, y: 300 },
-      ],
-      name: "Ember Forge",
-      tag: "Tight cover · crossfire corridors",
-      floor: 0x2d2029,
-      tile: 0x392936,
-      stone: 0x735362,
-      accent: 0xffb36b,
-      walls: [
-        { x: 250, y: 100, w: 130, h: 55 },
-        { x: 580, y: 100, w: 130, h: 55 },
-        { x: 250, y: 445, w: 130, h: 55 },
-        { x: 580, y: 445, w: 130, h: 55 },
-        { x: 260, y: 260, w: 65, h: 80 },
-        { x: 635, y: 260, w: 65, h: 80 },
-      ],
-    },
-    frost: {
-      name: "Frost Bridge",
-      tag: "Narrow lanes · slippery center",
-      floor: 0x172b3c,
-      tile: 0x254155,
-      stone: 0x638da0,
-      accent: 0xacf4ff,
-      walls: [
-        { x: 300, y: 80, w: 60, h: 170 },
-        { x: 600, y: 350, w: 60, h: 170 },
-        { x: 600, y: 80, w: 60, h: 170 },
-        { x: 300, y: 350, w: 60, h: 170 },
-      ],
-      hazards: [{ kind: "ice", x: 370, y: 160, w: 220, h: 280 }],
-      pickups: [
-        { kind: "health", x: 480, y: 180 },
-        { kind: "damage", x: 480, y: 420 },
-        { kind: "speed", x: 240, y: 300 },
-        { kind: "speed", x: 720, y: 300 },
-      ],
-      spawns: [
-        { x: 480, y: 300 },
-        { x: 180, y: 100 },
-        { x: 780, y: 500 },
-        { x: 180, y: 500 },
-        { x: 780, y: 100 },
-        { x: 400, y: 280 },
-        { x: 560, y: 320 },
-      ],
-    },
-  };
+export const arenas: Record<
+  "astral" | "grove" | "ember" | "frost" | "citadel",
+  ArenaData
+> = {
+  citadel: {
+    name: "Citadel Crossing",
+    tag: "Twin bases · three routes · capture the flag",
+    floor: 0x101f30,
+    tile: 0x193247,
+    stone: 0x4d7185,
+    accent: 0xf2ce83,
+    walls: [
+      { x: 200, y: 170, w: 65, h: 90 },
+      { x: 200, y: 340, w: 65, h: 90 },
+      { x: 695, y: 170, w: 65, h: 90 },
+      { x: 695, y: 340, w: 65, h: 90 },
+      { x: 385, y: 220, w: 65, h: 40 },
+      { x: 510, y: 340, w: 65, h: 40 },
+      { x: 420, y: 80, w: 120, h: 40 },
+      { x: 420, y: 480, w: 120, h: 40 },
+    ],
+    pickups: [
+      { kind: "health", x: 150, y: 300 },
+      { kind: "health", x: 810, y: 300 },
+      { kind: "speed", x: 480, y: 180 },
+      { kind: "speed", x: 480, y: 420 },
+    ],
+    spawns: [
+      { x: 480, y: 180 },
+      { x: 480, y: 420 },
+      { x: 330, y: 300 },
+      { x: 630, y: 300 },
+    ],
+  },
+  astral: {
+    spawns: [
+      { x: 480, y: 300 },
+      { x: 180, y: 90 },
+      { x: 780, y: 510 },
+      { x: 180, y: 510 },
+      { x: 780, y: 90 },
+      { x: 380, y: 265 },
+      { x: 580, y: 335 },
+    ],
+    pads: [
+      { x: 150, y: 300, toX: 810, toY: 300 },
+      { x: 810, y: 300, toX: 150, toY: 300 },
+    ],
+    pickups: [
+      { kind: "health", x: 480, y: 140 },
+      { kind: "speed", x: 380, y: 300 },
+      { kind: "speed", x: 580, y: 300 },
+      { kind: "damage", x: 480, y: 460 },
+    ],
+    name: "Astral Keep",
+    tag: "Balanced lanes · violet stone",
+    floor: 0x151b30,
+    tile: 0x202940,
+    stone: 0x455577,
+    accent: 0xb899ff,
+    walls: [
+      { x: 230, y: 145, w: 95, h: 65 },
+      { x: 635, y: 145, w: 95, h: 65 },
+      { x: 230, y: 390, w: 95, h: 65 },
+      { x: 635, y: 390, w: 95, h: 65 },
+    ],
+  },
+  grove: {
+    spawns: [
+      { x: 480, y: 300 },
+      { x: 140, y: 80 },
+      { x: 820, y: 520 },
+      { x: 140, y: 520 },
+      { x: 820, y: 80 },
+      { x: 340, y: 230 },
+      { x: 620, y: 370 },
+    ],
+    hazards: [
+      { kind: "bush", x: 340, y: 170, w: 80, h: 90 },
+      { kind: "bush", x: 540, y: 340, w: 80, h: 90 },
+    ],
+    pickups: [
+      { kind: "health", x: 480, y: 180 },
+      { kind: "damage", x: 480, y: 420 },
+      { kind: "speed", x: 330, y: 300 },
+      { kind: "speed", x: 630, y: 300 },
+    ],
+    name: "Verdant Ruins",
+    tag: "Open center · flanking paths",
+    floor: 0x132b2b,
+    tile: 0x1a3634,
+    stone: 0x42685c,
+    accent: 0x83ebbf,
+    walls: [
+      { x: 210, y: 100, w: 65, h: 145 },
+      { x: 685, y: 355, w: 65, h: 145 },
+      { x: 210, y: 355, w: 65, h: 145 },
+      { x: 685, y: 100, w: 65, h: 145 },
+      { x: 415, y: 80, w: 130, h: 45 },
+      { x: 415, y: 475, w: 130, h: 45 },
+    ],
+  },
+  ember: {
+    spawns: [
+      { x: 480, y: 300 },
+      { x: 160, y: 130 },
+      { x: 800, y: 470 },
+      { x: 160, y: 470 },
+      { x: 800, y: 130 },
+      { x: 400, y: 220 },
+      { x: 560, y: 380 },
+    ],
+    hazards: [
+      { kind: "lava", x: 370, y: 185, w: 220, h: 18, damage: 5 },
+      { kind: "lava", x: 370, y: 397, w: 220, h: 18, damage: 5 },
+      { kind: "vent", x: 420, y: 265, w: 40, h: 70, damage: 10 },
+      { kind: "vent", x: 500, y: 265, w: 40, h: 70, damage: 10 },
+    ],
+    pickups: [
+      { kind: "health", x: 480, y: 215 },
+      { kind: "damage", x: 480, y: 385 },
+      { kind: "speed", x: 350, y: 300 },
+      { kind: "speed", x: 610, y: 300 },
+    ],
+    name: "Ember Forge",
+    tag: "Tight cover · crossfire corridors",
+    floor: 0x2d2029,
+    tile: 0x392936,
+    stone: 0x735362,
+    accent: 0xffb36b,
+    walls: [
+      { x: 250, y: 100, w: 130, h: 55 },
+      { x: 580, y: 100, w: 130, h: 55 },
+      { x: 250, y: 445, w: 130, h: 55 },
+      { x: 580, y: 445, w: 130, h: 55 },
+      { x: 260, y: 260, w: 65, h: 80 },
+      { x: 635, y: 260, w: 65, h: 80 },
+    ],
+  },
+  frost: {
+    name: "Frost Bridge",
+    tag: "Narrow lanes · slippery center",
+    floor: 0x172b3c,
+    tile: 0x254155,
+    stone: 0x638da0,
+    accent: 0xacf4ff,
+    walls: [
+      { x: 300, y: 80, w: 60, h: 170 },
+      { x: 600, y: 350, w: 60, h: 170 },
+      { x: 600, y: 80, w: 60, h: 170 },
+      { x: 300, y: 350, w: 60, h: 170 },
+    ],
+    hazards: [{ kind: "ice", x: 370, y: 160, w: 220, h: 280 }],
+    pickups: [
+      { kind: "health", x: 480, y: 180 },
+      { kind: "damage", x: 480, y: 420 },
+      { kind: "speed", x: 240, y: 300 },
+      { kind: "speed", x: 720, y: 300 },
+    ],
+    spawns: [
+      { x: 480, y: 300 },
+      { x: 180, y: 100 },
+      { x: 780, y: 500 },
+      { x: 180, y: 500 },
+      { x: 780, y: 100 },
+      { x: 400, y: 280 },
+      { x: 560, y: 320 },
+    ],
+  },
+};
 arenas.grove.walls = arenas.grove.walls.map((w, i) => ({
   ...w,
   cracked: i < 4,
 }));
 for (const arena of Object.values(arenas)) {
   arena.pickups ??= [];
-  arena.pickups.push({ kind: "shield", x: 480, y: 300 });
+  arena.pickups.push({
+    kind: "shield",
+    x: 480,
+    y: 300,
+  });
 }
 export type ArenaId = keyof typeof arenas;
 export const modes = {
+  ctf: {
+    name: "Capture the Flag",
+    duration: 240000,
+    target: 3,
+    description: "Steal their flag · bring it to your home flag · first to 3",
+  },
   crystal: {
     duration: 180000,
     name: "Crystal Clash",
@@ -305,6 +347,11 @@ export type Player = {
   kills: number;
   deaths: number;
   collected: number;
+  damageDealt?: number;
+  healingDone?: number;
+  objectives?: number;
+  captures?: number;
+  returns?: number;
   lastInput: number;
   input: Input;
 };
@@ -339,7 +386,74 @@ export type Effect = {
   pickupKind?: PickupKind;
   direction?: number;
 };
+export type Flag = {
+  team: number;
+  x: number;
+  y: number;
+  carrier?: string;
+  droppedAt?: number;
+};
+export const flagHome = (team: number) => ({ x: team ? 870 : 90, y: 300 });
+export function resetFlag(f: Flag) {
+  Object.assign(f, flagHome(f.team));
+  delete f.carrier;
+  delete f.droppedAt;
+}
+export function updateFlags(r: Room, now: number) {
+  if (r.mode !== "ctf" || !r.flags) return;
+  for (const f of r.flags) {
+    if (f.carrier) {
+      const p = r.players.find((p) => p.id === f.carrier);
+      if (p) { f.x=p.x; f.y=p.y; }
+      if (!p || !p.online || p.respawn) {
+        delete f.carrier;
+        f.droppedAt = now;
+      } else {
+        f.x = p.x;
+        f.y = p.y;
+      }
+    }
+    if (f.droppedAt !== undefined && now - f.droppedAt >= 12000) resetFlag(f);
+  }
+  // Returns happen before captures, independent of player array order.
+  for (const p of r.players.filter((p) => p.online && !p.respawn)) {
+    const own = r.flags[p.team];
+    if (
+      own.droppedAt !== undefined &&
+      Math.hypot(p.x - own.x, p.y - own.y) < 28
+    ) {
+      resetFlag(own);
+      p.returns = (p.returns ?? 0) + 1;
+      p.objectives = (p.objectives ?? 0) + 1;
+    }
+  }
+  for (const p of r.players.filter((p) => p.online && !p.respawn)) {
+    const own = r.flags[p.team],
+      enemy = r.flags[1 - p.team],
+      home = flagHome(p.team);
+    if (!enemy.carrier && Math.hypot(p.x - enemy.x, p.y - enemy.y) < 28) {
+      enemy.carrier = p.id;
+      delete enemy.droppedAt;
+      enemy.x = p.x;
+      enemy.y = p.y;
+    }
+    if (
+      enemy.carrier === p.id &&
+      !own.carrier &&
+      own.droppedAt === undefined &&
+      Math.hypot(p.x - home.x, p.y - home.y) < 35
+    ) {
+      r.scores[p.team]++;
+      p.captures = (p.captures ?? 0) + 1;
+      p.objectives = (p.objectives ?? 0) + 3;
+      resetFlag(enemy);
+      effect(r, "crystal", p, now, 1);
+    }
+  }
+}
 export type Room = {
+  spectators?: { id: string; name: string }[];
+  flags?: Flag[];
   code: string;
   host: string;
   players: Player[];
@@ -478,6 +592,7 @@ export function configure(
     r.mode !== config.mode
   ) {
     r.mode = config.mode as ModeId;
+    if (r.mode === "ctf") r.arena = "citadel";
     changed = true;
   }
   if (changed) r.players.forEach((p) => (p.ready = !!p.bot));
@@ -509,13 +624,17 @@ function effect(
 export function start(r: Room, now: number) {
   r.arena ??= "astral";
   r.mode ??= "crystal";
+  r.flags =
+    r.mode === "ctf"
+      ? [0, 1].map((team) => ({ team, ...flagHome(team) }))
+      : undefined;
   r.phase = "playing";
   r.matchId = `${r.code}-${now}`;
   r.scores = [0, 0];
   r.end = now + modes[r.mode].duration;
   r.winner = "";
   r.bolts = [];
-  r.crystals = usesCrystals(r.mode) ? [{ x: 480, y: 300 }] : [];
+  r.crystals = usesCrystals(r.mode) ? [{ ...arenas[r.arena].spawns[0] }] : [];
   r.effects = [];
   r.brokenWalls = [];
   r.wallHits = {};
@@ -560,6 +679,11 @@ export function start(r: Room, now: number) {
       vx: 0,
       vy: 0,
       stormTick: 0,
+      damageDealt: 0,
+      healingDone: 0,
+      objectives: 0,
+      captures: 0,
+      returns: 0,
       kills: 0,
       deaths: 0,
       collected: 0,
@@ -604,6 +728,9 @@ function damage(
   }
   if (rifle && p.hp === maxHealth(p) && amount >= p.hp) amount = p.hp - 1;
   if (amount <= 0) return;
+  const attacker = r.players.find((a) => a.id === owner);
+  if (attacker)
+    attacker.damageDealt = (attacker.damageDealt ?? 0) + Math.min(p.hp, amount);
   p.hp = Math.max(0, p.hp - amount);
   Object.assign(effect(r, "hit", p, now, amount), {
     actor: owner,
@@ -618,7 +745,7 @@ function damage(
     p.deaths++;
     const killer = r.players.find((a) => a.id === owner);
     if (killer) killer.kills++;
-    if (r.mode !== "control") r.scores[team] += 3;
+    if (r.mode !== "control" && r.mode !== "ctf") r.scores[team] += 3;
     effect(r, "ko", p, now);
     r.feed ??= [];
     r.feed.push({
@@ -808,11 +935,24 @@ export function tick(r: Room, now: number, dt: number) {
         }
         effect(r, "blink", p, now);
       } else if (p.loadout === "mend") {
-        if (p.hp < maxHealth(p)) {
+        const targets =
+          p.classId === "medic"
+            ? r.players.filter(
+                (ally) =>
+                  ally.online &&
+                  !ally.respawn &&
+                  ally.team === p.team &&
+                  Math.hypot(ally.x - p.x, ally.y - p.y) <= 100,
+              )
+            : [p];
+        if (targets.some((ally) => ally.hp < maxHealth(ally))) {
           p.special = now + 12000;
-          const amount = Math.min(30, maxHealth(p) - p.hp);
-          p.hp += amount;
-          effect(r, "mend", p, now, amount);
+          for (const ally of targets) {
+            const amount = Math.min(30, maxHealth(ally) - ally.hp);
+            ally.hp += amount;
+            p.healingDone = (p.healingDone ?? 0) + amount;
+            if (amount) effect(r, "mend", ally, now, amount);
+          }
         }
       } else {
         p.special = now + 8000;
@@ -874,6 +1014,7 @@ export function tick(r: Room, now: number, dt: number) {
     r.crystals = r.crystals.filter((c) => {
       if (Math.hypot(c.x - p.x, c.y - p.y) < 26) {
         r.scores[p.team] += mode === "blitz" ? 2 : 1;
+        p.objectives = (p.objectives ?? 0) + 1;
         p.collected++;
         effect(r, "crystal", { ...c, team: p.team, id: p.id }, now);
         return false;
@@ -992,9 +1133,20 @@ export function tick(r: Room, now: number, dt: number) {
     r.controlTeam = present[0] === present[1] ? -1 : present[0] ? 0 : 1;
     if (now >= (r.nextControl ?? now)) {
       r.nextControl = now + 1000;
-      if (r.controlTeam >= 0) r.scores[r.controlTeam]++;
+      if (r.controlTeam >= 0) {
+        r.scores[r.controlTeam]++;
+        for (const p of r.players.filter(
+          (p) =>
+            p.online &&
+            !p.respawn &&
+            p.team === r.controlTeam &&
+            Math.hypot(p.x - 480, p.y - 300) < 88,
+        ))
+          p.objectives = (p.objectives ?? 0) + 1;
+      }
     }
   }
+  updateFlags(r, now);
   // Simultaneous scores in overtime must produce a leader, rather than an arbitrary team winning.
   if (r.tutorial) {
     updateTutorial(r, now);
@@ -1029,25 +1181,30 @@ export type Snapshot = Omit<Room, "players" | "updated" | "emptySince"> & {
 };
 export function snapshot(r: Room, now: number, viewerId?: string): Snapshot {
   const viewer = r.players.find((p) => p.id === viewerId);
+  const watching = r.spectators?.some((p) => p.id === viewerId);
   const { updated, emptySince, ...rest } = r;
   return {
     ...rest,
     effects: r.effects?.filter(
       (e) =>
         now - e.at < 600 &&
-        (!viewer || viewer.team === e.team || !inBush(e, r.arena ?? "astral")),
+        (!inBush(e, r.arena ?? "astral") ||
+          (!watching && (!viewer || viewer.team === e.team))),
     ),
     players: r.players.map(({ input, lastInput, ...p }) => ({
       ...p,
       hidden:
-        !!viewer && viewer.team !== p.team && inBush(p, r.arena ?? "astral"),
+        (!!watching || (!!viewer && viewer.team !== p.team)) &&
+        inBush(p, r.arena ?? "astral"),
       inBush: inBush(p, r.arena ?? "astral"),
       x:
-        viewer && viewer.team !== p.team && inBush(p, r.arena ?? "astral")
+        (watching || (viewer && viewer.team !== p.team)) &&
+        inBush(p, r.arena ?? "astral")
           ? -1000
           : p.x,
       y:
-        viewer && viewer.team !== p.team && inBush(p, r.arena ?? "astral")
+        (watching || (viewer && viewer.team !== p.team)) &&
+        inBush(p, r.arena ?? "astral")
           ? -1000
           : p.y,
       moving: Math.hypot(input.x, input.y) > 0.1 || now < p.burst,
@@ -1073,11 +1230,11 @@ export function removeExpiredPlayer(
 }
 
 export function playableBounds(
-  r: Pick<Room, "phase" | "overtimeStart">,
+  r: Pick<Room, "phase" | "overtimeStart" | "mode">,
   now: number,
 ) {
   const step =
-    r.phase === "overtime"
+    r.phase === "overtime" && r.mode !== "ctf"
       ? Math.max(0, Math.floor((now - (r.overtimeStart ?? now)) / 5000))
       : 0;
   return { x: Math.min(360, step * 60), y: Math.min(210, step * 35) };

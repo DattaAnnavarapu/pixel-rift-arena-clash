@@ -48,9 +48,11 @@ function room(classId: ClassId = "assault", weaponId: WeaponId = "blaster") {
   return r;
 }
 const expectedDamage = {
-  assault: { blaster: 20, shotgun: 8, rifle: 50 },
-  tank: { blaster: 17, shotgun: 7, rifle: 43 },
-  scout: { blaster: 18, shotgun: 7, rifle: 45 },
+  assault: { blaster: 20, shotgun: 8, rifle: 50, repeater: 12, scatter: 12 },
+  tank: { blaster: 17, shotgun: 7, rifle: 43, repeater: 10, scatter: 10 },
+  scout: { blaster: 18, shotgun: 7, rifle: 45, repeater: 11, scatter: 11 },
+  medic: { blaster: 18, shotgun: 7, rifle: 45, repeater: 11, scatter: 11 },
+  ranger: { blaster: 20, shotgun: 8, rifle: 50, repeater: 12, scatter: 12 },
 };
 for (const classId of Object.keys(classes) as ClassId[]) {
   for (const weaponId of Object.keys(weapons) as WeaponId[]) {

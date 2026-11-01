@@ -432,6 +432,30 @@ export default class Arena extends Phaser.Scene {
       g.fillStyle(a.accent, 0.15 + 0.15 * Math.sin(now / 500 + i));
       g.fillRect(x, y, i % 3 === 0 ? 3 : 2, 2);
     }
+    if (state.mode === "ctf") {
+      for (const f of state.flags ?? []) {
+        const c = teamColors[f.team],
+          home = { x: f.team ? 870 : 90, y: 300 };
+        g.fillStyle(c, 0.12);
+        g.fillCircle(home.x, home.y, 36);
+        g.lineStyle(3, c, 0.9);
+        g.strokeCircle(home.x, home.y, 36);
+        g.lineStyle(1, 0xffffff, 0.3);
+        g.strokeCircle(home.x, home.y, 42);
+        const x = f.x,
+          y = f.y - (f.carrier ? 38 : 0);
+        g.lineStyle(3, 0xffe8b5);
+        g.lineBetween(x, y + 15, x, y - 28);
+        g.fillStyle(c, 1);
+        g.fillTriangle(x + 2, y - 28, x + 27, y - 20, x + 2, y - 9);
+        g.fillStyle(0xffffff, 0.9);
+        g.fillRect(x + 5, y - 23, 4, 4);
+        if (f.droppedAt !== undefined) {
+          g.lineStyle(2, c, 0.8);
+          g.strokeCircle(x, y, 24);
+        }
+      }
+    }
     if (state.mode === "control") {
       const c =
         state.controlTeam === 0
@@ -763,6 +787,15 @@ export default class Arena extends Phaser.Scene {
           : 0;
       const gx = x + Math.cos(angle) * (20 - recoil),
         gy = y + Math.sin(angle) * (20 - recoil);
+      if (p.weaponId === "scatter") {
+        for (const side of [-1,1]) {
+          const ox=Math.sin(angle)*side*4,oy=-Math.cos(angle)*side*4;
+          g.lineStyle(4,0xffcd80);g.lineBetween(gx+ox,gy+oy,gx+ox+Math.cos(angle)*14,gy+oy+Math.sin(angle)*14);
+        }
+      } else if (p.weaponId === "repeater") {
+        g.fillStyle(0x7cffe0);g.fillCircle(gx,gy,6);
+        g.lineStyle(2,0xd5fff3);g.strokeCircle(gx,gy,8);
+      }
       g.lineStyle(7, 0x16233a);
       g.lineBetween(x, y, gx, gy);
       g.lineStyle(4, 0xc5d5e8);
@@ -794,6 +827,20 @@ export default class Arena extends Phaser.Scene {
       if (p.absorption > 0 && p.absorptionUntil > now) {
         g.lineStyle(2, 0x9af0ff, 0.65);
         g.strokeCircle(x, y, 31);
+      }
+      // Distinct readable class crests and layered outlines, no hitbox changes.
+      if (p.classId === "medic") {
+        g.fillStyle(0xa8ffdc);
+        g.fillRect(x - 3, y - 22, 6, 16);
+        g.fillRect(x - 8, y - 17, 16, 6);
+      }
+      if (p.classId === "ranger") {
+        g.lineStyle(3, 0xf5d48c);
+        g.strokeTriangle(x - 10, y - 20, x + 10, y - 20, x, y - 31);
+      }
+      if (p.weaponId === "repeater" || p.weaponId === "scatter") {
+        g.lineStyle(2, p.weaponId === "repeater" ? 0x89ffe0 : 0xffdc89);
+        g.strokeCircle(x, y, 23);
       }
       // Class silhouettes remain readable without changing the shared hitbox.
       if (p.classId === "tank") {
