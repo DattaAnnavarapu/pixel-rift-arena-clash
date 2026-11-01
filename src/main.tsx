@@ -1,4 +1,5 @@
 import { ActionLatch } from "./action-latch";
+import { retryResume, type ResumeReply } from "./resume";
 import { emotes, teamMarkers } from "../server/social";
 import { pingClass } from "./feedback";
 import { TutorialRound } from "./ui/TutorialRound";
@@ -334,6 +335,7 @@ function App() {
     [online, setOnline] = useState(false),
     [pending, setPending] = useState(false),
     [waking, setWaking] = useState(false),
+    [reconnecting, setReconnecting] = useState(false),
     [practiceLevel, setPracticeLevel] = useState<"easy" | "normal" | "hard">("normal"),
     [time, setTime] = useState(Date.now()),
     [sfx, setSfx] = useState(effectsEnabled),
@@ -350,6 +352,8 @@ function App() {
     [snapshotStale, setSnapshotStale] = useState(false),
     [mismatch, setMismatch] = useState(false),
     [previewArena, setPreviewArena] = useState<ArenaId>("astral");
+  const resumeController = useRef<AbortController | null>(null),
+    wasConnected = useRef(false);
   const lastSnapshot = useRef(Date.now()),
     sequence = useRef(0),
     panelOpen = useRef(false);
@@ -372,12 +376,75 @@ function App() {
     tutorial = false,
     practice = false,
   ) {
+    // A resume is not a new entry: transient failures must preserve session ownership.
+    if (resume) {
+      const token = sessionStorage.getItem("rift-token");
+      if (!token) return;
+      resumeController.current?.abort();
+      const controller = new AbortController();
+      resumeController.current = controller;
+      setPending(true);
+      setReconnecting(true);
+      setError("");
+      const request = () =>
+        new Promise<ResumeReply>((resolve, reject) => {
+          if (!socket.connected) return reject(new Error("Transport disconnected"));
+          socket.timeout(8000).emit(
+            "enter",
+            {
+              name: localStorage.getItem("rift-name"),
+              code: new URLSearchParams(location.search).get("room") || code,
+              create: false,
+              matchmake: false,
+              mode: quickMode,
+              protocol: PROTOCOL_VERSION,
+              token,
+            },
+            (err: Error | null, reply: ResumeReply) => {
+              if (err) reject(err);
+              else resolve(reply);
+            },
+          );
+        });
+      void retryResume(request, controller.signal).then((outcome) => {
+        if (controller.signal.aborted || resumeController.current !== controller) return;
+        resumeController.current = null;
+        setPending(false);
+        setReconnecting(false);
+        if (outcome.status === "resumed") {
+          sequence.current = 0;
+          identify(outcome.reply.id);
+          setId(outcome.reply.id);
+          sessionStorage.setItem("rift-token", outcome.reply.token);
+          history.replaceState({}, "", `?room=${outcome.reply.code}`);
+          setError("");
+        } else if (outcome.status === "rejected") {
+          if (outcome.clearToken) {
+            sessionStorage.removeItem("rift-token");
+            identify("");
+            receive(null);
+            setS(null);
+            setId("");
+            resetInput();
+          }
+          setError(outcome.message);
+        } else if (outcome.status === "unavailable") {
+          // A request may have reached the server despite its lost acknowledgment.
+          setError("Connection interrupted. Session saved; retry reconnecting.");
+        }
+      });
+      return;
+    }
+
+    resumeController.current?.abort();
+    resumeController.current = null;
+    setReconnecting(false);
     unlock();
     setPending(true);
     socket.timeout(8000).emit(
       "enter",
       {
-        name: resume ? localStorage.getItem("rift-name") : nameRef.current,
+        name: nameRef.current,
         code: new URLSearchParams(location.search).get("room") || code,
         create,
         matchmake,
@@ -386,31 +453,18 @@ function App() {
         botLevel: practice ? practiceLevel : undefined,
         mode: quickMode,
         protocol: PROTOCOL_VERSION,
-        token: resume ? sessionStorage.getItem("rift-token") : undefined,
       },
       (err: any, r: any) => {
         setPending(false);
         if (err || r?.error) {
-          if (resume) {
-            sessionStorage.removeItem("rift-token");
-            identify("");
-            receive(null);
-            setS(null);
-            resetInput();
-          }
-          setError(
-            err ? "Server is taking a moment. Please try again." : r.error,
-          );
+          setError(err ? "Server is taking a moment. Please try again." : r.error);
           return;
         }
         sequence.current = 0;
         identify(r.id);
         setId(r.id);
         sessionStorage.setItem("rift-token", r.token);
-        localStorage.setItem(
-          "rift-name",
-          nameRef.current || localStorage.getItem("rift-name") || "Rifter",
-        );
+        localStorage.setItem("rift-name", nameRef.current || localStorage.getItem("rift-name") || "Rifter");
         history.replaceState({}, "", `?room=${r.code}`);
         setError("");
       },
@@ -421,6 +475,7 @@ function App() {
       if (!socket.connected) setWaking(true);
     }, 3500);
     const connected = () => {
+      wasConnected.current = true;
       setWaking(false);
       setOnline(true);
       if (sessionStorage.getItem("rift-token")) join(false, true);
@@ -443,6 +498,9 @@ function App() {
     socket.on("hello", hello);
     socket.on("server-closing", serverClosing);
     const disconnected = () => {
+      resumeController.current?.abort();
+      resumeController.current = null;
+      setReconnecting(!!sessionStorage.getItem("rift-token"));
       setWaking(true);
       setOnline(false);
       resetInput();
@@ -546,6 +604,8 @@ function App() {
     };
     document.addEventListener("visibilitychange", visibility);
     return () => {
+      resumeController.current?.abort();
+      resumeController.current = null;
       window.clearTimeout(wakeTimer);
       clearInterval(timer);
       clearInterval(ping);
@@ -728,8 +788,13 @@ function App() {
       </header>
       {waking && !online && (
         <p role="status" className="server-waking">
-          Server is waking up. Free hosting can take a moment; this page will reconnect automatically.
+          {wasConnected.current || sessionStorage.getItem("rift-token")
+            ? "Connection interrupted. Reconnecting…"
+            : "Connecting to the game server…"}
         </p>
+      )}
+      {reconnecting && online && (
+        <p role="status" className="server-waking">Reconnecting…</p>
       )}
       {mismatch && (
         <div className="update-banner" role="alert">
