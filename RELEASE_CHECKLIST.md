@@ -1,6 +1,6 @@
 # Pixel Rift release review
 
-Current candidate: `feature/event-stabilization`, version `1.2.0-alpha.2` (event candidate). It is not merged or published automatically. Earlier v1.1 test history remains below.
+Current source baseline: `main` includes the merged stabilization work at `1.2.0-alpha.2` (protocol 3). Event Tasks 2–7 are proposed separately; check the active PR and exact deployment commit before claiming publication. Earlier v1.1 test history remains below.
 
 ## Event day gate — 1.2.0-alpha.2 (protocol 3)
 
