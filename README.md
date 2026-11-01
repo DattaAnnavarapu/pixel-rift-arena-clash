@@ -26,6 +26,22 @@
 - **Connection diagnostics:** in-game ping and server status. Automated tests included a **simulated** four-client match at 400 ms RTT, 30 ms jitter, and 3% loss; that does **not** prove human high-ping playability.
 - **Event tooling:** `/ping`, `/health`, `npm run event:check -- <url>`, plus an [event-day checklist](docs/EVENT_DAY_CHECKLIST.md) and [demo script](docs/DEMO_SCRIPT.md).
 
+## Experimental server feature flags (not part of the verified event build)
+
+The candidate-only `server/event-flags.ts` defines these **default-OFF** environment switches; this module does not itself implement or enable those features:
+
+| Switch | Future capability |
+|---|---|
+| `PIXEL_RIFT_SPECTATOR` | Read-only spectator view |
+| `PIXEL_RIFT_LEADERBOARD` | Temporary event leaderboard |
+| `PIXEL_RIFT_EXPERIMENTAL_MODES` | Experimental modes |
+| `PIXEL_RIFT_COMPACT_SNAPSHOTS` | Compact snapshot transport |
+| `PIXEL_RIFT_LAG_COMPENSATION` | Experimental server rewind |
+| `PIXEL_RIFT_REGION_ROUTING` | Region selection |
+| `PIXEL_RIFT_TELEMETRY` | Opt-in monitoring |
+
+Only the exact string `1` returns true. **No feature currently consults these flags, so setting them does nothing.** Future server integrations must explicitly check flags and run tests/high-ping/protocol compatibility before considering activation. Avoid setting any of them during the event.
+
 ## Known limitations and acceptance checks
 
 The service uses **one Render instance with in-memory rooms**; a deploy/restart ends active matches and reconnect tokens, and a free-tier instance may sleep. Quick Play has no region routing, ranked skill matching, or shared state between servers. Shield activation may backdate **up to 150 ms** but cannot undo damage or KOs already committed. A local, synthetic high-ping test is not cross-country certification. **Real-phone usability, cross-network play, sustained load, and perceptual audio** still require manual checks; see [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md). Planned maps, modes, cosmetics, and region servers are **future work**, not shipped features.
