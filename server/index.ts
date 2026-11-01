@@ -71,6 +71,8 @@ export async function createGameServer(
     res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
     next();
   });
+  // A minimal, allocation-free response for external wake/uptime probes.
+  app.get("/ping", (_req, res) => res.status(200).type("text/plain").send("pong"));
   app.get("/health", (_, res) =>
     res.json({
       ok: !closing,
