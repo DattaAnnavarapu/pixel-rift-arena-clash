@@ -392,7 +392,7 @@ function App() {
           socket.timeout(attemptNumber === 0 ? 8000 : 4000).emit(
             "enter",
             {
-              name: localStorage.getItem("rift-name"),
+              name: localStorage.getItem("rift-name") || "Rifter",
               code: new URLSearchParams(location.search).get("room") || code,
               create: false,
               matchmake: false,
