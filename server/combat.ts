@@ -5,11 +5,21 @@ export const classes = {
   scout: { name: "Scout", hp: 80, speed: 210, damage: 0.9, glyph: "»" },
 } as const;
 export type ClassId = keyof typeof classes;
+/** Event playtest cadence switches, in milliseconds. Change one value per weapon.
+ * Blaster 800: 5 hits on Assault need a readable duel, not an instant burst.
+ * Shotgun 1500: close-range 5-pellet burst is powerful but has recovery time.
+ * Rifle 1500: long range and full-health one-shot protection require counterplay.
+ */
+export const weaponCadenceMs = {
+  blaster: 800,
+  shotgun: 1500,
+  rifle: 1500,
+} as const;
 export const weapons = {
   blaster: {
     name: "Blaster",
     damage: 20,
-    interval: 800,
+    interval: weaponCadenceMs.blaster,
     magazine: 10,
     reload: 1200,
     speed: 420,
@@ -19,7 +29,7 @@ export const weapons = {
   shotgun: {
     name: "Shotgun",
     damage: 8,
-    interval: 1500,
+    interval: weaponCadenceMs.shotgun,
     magazine: 4,
     reload: 1600,
     speed: 420,
@@ -29,7 +39,7 @@ export const weapons = {
   rifle: {
     name: "Precision rifle",
     damage: 50,
-    interval: 1500,
+    interval: weaponCadenceMs.rifle,
     magazine: 4,
     reload: 1800,
     speed: 720,
