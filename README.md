@@ -1,24 +1,36 @@
 # Pixel Rift: Arena Clash
 
-**Event pitch:** Pixel Rift is a fast, no-login team arena clash for 2–4 players, playable in a browser on desktop or mobile. Choose Assault, Tank or Scout, equip a Blaster, Shotgun or Precision rifle, fight over crystals and map control, and outplay opponents with dash, reflective shield and a special ability. The server decides hits and scores; solo visitors can practice with bots. This is the **1.2.0-alpha.2 event candidate**, protocol **3**, not a claim of real-phone or global certification.
+**Pixel Rift: Arena Clash** is a free-to-try, no-login, browser-based team arena game for **2–4 players** on desktop and mobile. Choose Assault, Tank, or Scout; bring a Blaster, Shotgun, or Precision rifle; and compete for crystals, control points, and knockouts while using Dash, a reflective Shield, and special abilities. New players can learn in a guided tutorial or jump into private Practice vs Bots; friends can join by room code, invite link, or QR. A 30 Hz authoritative Node/Socket.IO server decides hits, pickups, scores, and outcomes while client-side prediction improves responsiveness. This is a **1.2.0-alpha.2 event candidate**, not a certified global-scale release.
 
-**Live demo:** https://YOUR-RENDER-SERVICE.onrender.com (replace after verifying the deployment).
+**Live game:** [PUBLIC URL] — replace this placeholder only with the tested production address before submission.
 
-### Learn to play in 30 seconds
+## Play in 30 seconds
 
 | Action | Desktop | Mobile |
 |---|---|---|
-| Move / aim | WASD or arrows / mouse | Left MOVE stick / right AIM + FIRE stick |
-| Shoot / reload | Hold left click / auto reload | Drag AIM + FIRE / auto reload |
-| Dash / reflect | Space / E | DASH / SHIELD |
-| Special | Q | NOVA / MEND / BLINK / PULSE |
-| Join | Quick Play for humans; Practice vs Bots for solo | Same menu; use Tutorial for guided training |
+| Start | **Quick Play** (two or more humans); **Practice vs Bots** (solo) | Same menu; **Tutorial** for guided onboarding |
+| Move | WASD or arrow keys | MOVE thumb stick |
+| Aim and fire | Aim with mouse; hold left click | AIM + FIRE thumb stick; drag to shoot |
+| Reload | Automatic when magazine empties | Automatic |
+| Dash | Space | DASH |
+| Reflective shield | E | SHIELD |
+| Special ability | Q (Nova, Mend, Blink, or Pulse) | On-screen special button |
+| Invite friends | Copy a private room link/code or show its QR | Scan a private-room QR or enter the code |
 
-**Screenshots:** [CSS layout verification and pending hardware checks](docs/MOBILE_CSS_QA.md). Add actual tested screenshots from the candidate build to `docs/screenshots/` before submitting; no unverified screenshots are presented as device evidence.
+## What's ready for the event
 
-For event operator instructions see [Event day checklist](docs/EVENT_DAY_CHECKLIST.md), [60–90s demo script](docs/DEMO_SCRIPT.md) and [uptime/backup guide](docs/EVENT_UPTIME.md).
+- **Combat loadouts:** Assault, Tank, Scout; Blaster, Shotgun, Precision rifle; four specials and collectible health, shield, speed, and damage boosts.
+- **Onboarding:** first-run prompt and guided tutorial; private Practice vs Bots with **Easy / Normal / Hard** difficulty.
+- **Multiplayer:** Quick Play for 2–4 people, private invites, room-link QR sharing, server-owned outcomes, and session resume/reconnect handling.
+- **Mobile controls:** two-thumb movement/aiming, touch abilities, portrait/landscape layouts, configurable stick size, left-handed layout, and quality preferences.
+- **Connection diagnostics:** in-game ping and server status. Automated tests included a **simulated** four-client match at 400 ms RTT, 30 ms jitter, and 3% loss; that does **not** prove human high-ping playability.
+- **Event tooling:** `/ping`, `/health`, `npm run event:check -- <url>`, plus an [event-day checklist](docs/EVENT_DAY_CHECKLIST.md) and [demo script](docs/DEMO_SCRIPT.md).
 
-A 2–4-player, no-login team arena game built with React 19, Phaser 3, TypeScript, Node.js, Express and Socket.IO. One process serves both the client and the authoritative game server.
+## Known limitations and acceptance checks
+
+The service uses **one Render instance with in-memory rooms**; a deploy/restart ends active matches and reconnect tokens, and a free-tier instance may sleep. Quick Play has no region routing, ranked skill matching, or shared state between servers. Shield activation may backdate **up to 150 ms** but cannot undo damage or KOs already committed. A local, synthetic high-ping test is not cross-country certification. **Real-phone usability, cross-network play, sustained load, and perceptual audio** still require manual checks; see [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md). Planned maps, modes, cosmetics, and region servers are **future work**, not shipped features.
+
+**For judges:** [30- and 60-second pitches, Q&A, and roadmap](docs/PITCH.md). **For operators:** [event-day runbook](docs/EVENT_DAY_CHECKLIST.md), [60–90 second demo flow](docs/DEMO_SCRIPT.md), [hosting fallback](docs/EVENT_UPTIME.md), and [CSS viewport QA status](docs/MOBILE_CSS_QA.md). Demo screenshots and videos should come from the actual deployed build, not mockups.
 
 ## v1.2 event candidate — 1.2.0-alpha.2
 
