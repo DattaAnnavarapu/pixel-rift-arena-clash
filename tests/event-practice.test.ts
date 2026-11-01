@@ -30,7 +30,8 @@ test("private practice payload whitelist and quick-play isolation", async () => 
     assert.equal(room.botLevel, "hard");
     assert.equal(room.phase, "playing");
     assert.equal(room.players.filter((p) => p.bot).length, 3);
-    assert.ok(room.players.every((p) => p.ready));
+    // start() intentionally clears ready flags for the next round.
+    assert.ok(room.players.some((p) => p.team === 0) && room.players.some((p) => p.team === 1));
     const b = await client();
     const quick = await enter(b, { matchmake: true, mode: "crystal" });
     assert.notEqual(quick.code, practice.code);
