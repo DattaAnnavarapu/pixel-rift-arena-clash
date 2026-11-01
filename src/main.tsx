@@ -354,6 +354,7 @@ function App() {
     [online, setOnline] = useState(false),
     [pending, setPending] = useState(false),
     [waking, setWaking] = useState(false),
+    [rotateHintDismissed, setRotateHintDismissed] = useState(() => sessionStorage.getItem("rift-rotate-hint") === "yes"),
     [reconnecting, setReconnecting] = useState(false),
     [practiceLevel, setPracticeLevel] = useState<"easy" | "normal" | "hard">("normal"),
     [time, setTime] = useState(Date.now()),
@@ -878,13 +879,6 @@ function App() {
               NO THANKS
             </button>
           </aside>
-          <button
-            className="tutorial-launch"
-            onClick={() => join(true, false, false, true)}
-            disabled={!online || pending}
-          >
-            PLAY TUTORIAL
-          </button>
           <section className="hero">
             <div className="hero-copy">
               <span className="eyebrow">THE RIFT IS OPEN · 2–4 PLAYERS</span>
@@ -1060,6 +1054,15 @@ function App() {
                   {latency === null ? "…" : `${latency}ms`}
                 </small>
               </span>
+              {!rotateHintDismissed && (
+                <span className="rotate-hint" role="status">
+                  Rotate for a bigger view
+                  <button aria-label="Dismiss rotation hint" onClick={() => {
+                    setRotateHintDismissed(true);
+                    sessionStorage.setItem("rift-rotate-hint", "yes");
+                  }}>×</button>
+                </span>
+              )}
               <button onClick={() => setScoreboard(!scoreboard)}>SCORES</button>
               <button onClick={() => setPanel("settings")}>SETTINGS</button>
               <button
