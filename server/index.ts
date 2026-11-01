@@ -189,7 +189,17 @@ export async function createGameServer(
         return ack({ error: "Too many room creations" });
       if (data.matchmake && !limits.allow("quick", 0.5, 5))
         return ack({ error: "Too many Quick Play attempts" });
-      if (room) return ack({ error: "Already in a room" });
+      if (room) {
+        // A lost acknowledgment can make the same socket retry a successful resume.
+        // Return the existing identity only when the token belongs to this socket.
+        const existing = typeof data?.token === "string" ? sessions.get(data.token) : undefined;
+        if (
+          existing?.code === room.code &&
+          existing.id === id &&
+          owners.get(id) === s.id
+        ) return ack({ id, token: data.token, code: room.code });
+        return ack({ error: "Already in a room" });
+      }
       if (data.practice === true && (data.create !== true || data.matchmake === true || data.tutorial === true || !!data.token))
         return ack({ error: "Practice requires a private room" });
       if (
