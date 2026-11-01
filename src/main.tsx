@@ -1,4 +1,5 @@
 import { ActionLatch } from "./action-latch";
+import { inviteUrl, qrMatrix, QR_SIZE } from "./invite-qr";
 import { retryResume, type ResumeReply } from "./resume";
 import { emotes, teamMarkers } from "../server/social";
 import { pingClass } from "./feedback";
@@ -320,6 +321,24 @@ function ArenaPreview({ arena = "astral" }: { arena?: ArenaId }) {
         <rect x="282" y="101" width="9" height="13" />
         <rect x="281" y="98" width="11" height="5" />
       </g>
+    </svg>
+  );
+}
+function InviteQRCode({ url }: { url: string }) {
+  const matrix = React.useMemo(() => qrMatrix(url), [url]);
+  if (!matrix) return <p className="quiet">Link too long for QR. Use COPY INVITE.</p>;
+  const path = matrix.flatMap((row, y) =>
+    row.flatMap((dark, x) => dark ? [`M${x + 4} ${y + 4}h1v1h-1z`] : []),
+  ).join("");
+  return (
+    <svg
+      role="img"
+      aria-label="QR code containing this private room's invitation URL"
+      viewBox={`0 0 ${QR_SIZE + 8} ${QR_SIZE + 8}`}
+      className="invite-qr-image"
+    >
+      <rect width={QR_SIZE + 8} height={QR_SIZE + 8} fill="#fff" />
+      <path d={path} fill="#000" />
     </svg>
   );
 }
@@ -1093,6 +1112,15 @@ function App() {
               <strong>{s.code}</strong>
               <button onClick={invite}>COPY INVITE ↗</button>
               <small className="invite-url">{location.origin}/?room={s.code}</small>
+              {lobby && !s.publicMatch && !s.tutorial && (
+                <details className="invite-qr-details">
+                  <summary>SHOW JOIN QR</summary>
+                  <div className="invite-qr-panel">
+                    <InviteQRCode url={inviteUrl(location.origin, s.code)} />
+                    <span>SCAN TO JOIN THIS ROOM</span>
+                  </div>
+                </details>
+              )}
               <button className="quiet-button" onClick={leave}>
                 LEAVE
               </button>
