@@ -59,14 +59,17 @@ const socket = io({
   reconnectionDelay: 500,
   reconnectionDelayMax: 4000,
 });
-function Stick({ aim = false }: { aim?: boolean }) {
+function Stick({ aim = false, sensitivity = 1 }: { aim?: boolean; sensitivity?: number }) {
   const activePointer = useRef<number | null>(null);
   const stickRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const cancel = () => {
       activePointer.current = null;
       stickRef.current?.removeAttribute("style");
-      if (aim) touch.firing = false;
+      if (aim) {
+        touch.firing = false;
+        touch.aim = false;
+      }
       else {
         touch.move = false;
         input.x = input.y = 0;
@@ -86,7 +89,7 @@ function Stick({ aim = false }: { aim?: boolean }) {
   function release(e: React.PointerEvent) {
     if (activePointer.current !== e.pointerId) return;
     activePointer.current = null;
-    if (aim) touch.firing = false;
+    if (aim) { touch.firing = false; touch.aim = false; }
     if (!aim) {
       touch.move = false;
       input.x = input.y = 0;
@@ -98,7 +101,7 @@ function Stick({ aim = false }: { aim?: boolean }) {
       vector = joystickVector(
         e.clientX - r.left - r.width / 2,
         e.clientY - r.top - r.height / 2,
-        (r.width * 0.4) / (aim ? (initialSettings.aimSensitivity ?? 1) : 1),
+        (r.width * 0.4) / (aim ? sensitivity : 1),
       ),
       { x, y } = vector;
     if (aim) {
@@ -1519,7 +1522,7 @@ function App() {
               <div className="touch">
                 <Stick />
                 <div className="touchright">
-                  <Stick aim />
+                  <Stick aim sensitivity={settings.aimSensitivity ?? 1} />
                   <div className="touch-buttons">
                     <TouchButton
                       action="dash"
