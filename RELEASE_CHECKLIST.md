@@ -21,6 +21,18 @@ Current source baseline: `main` includes the merged stabilization work at `1.2.0
 
 **Release-hygiene suggestion, do NOT execute until approved:** `git tag event-candidate && git push origin event-candidate`. See [event day runbook](docs/EVENT_DAY_CHECKLIST.md), [uptime/backup](docs/EVENT_UPTIME.md), [TTK matrix](docs/EVENT_TTK.md), [mobile CSS QA](docs/MOBILE_CSS_QA.md) and [demo script](docs/DEMO_SCRIPT.md).
 
+## Resume/reconnect regression — event hotfix (manual checks pending)
+
+- [ ] On an already joined player, temporarily delay/drop the resume acknowledgment beyond 8 seconds. Confirm the client stays in **Reconnecting…**, preserves `sessionStorage["rift-token"]`, and retries after approximately 1, 2 and 4 seconds (remaining ack timeouts use 4s to stay near the 30s grace window).
+- [ ] Restore transport during the attempts: the original player ID, room, team and score should recover without creating a duplicate player.
+- [ ] Lose an ack *after* the server accepts the resume: the retry on the same socket should receive the same ID/token/code, not `Already in a room`.
+- [ ] Disconnect during a backoff, then reconnect: stale attempts must not override the newly resumed player.
+- [ ] Force an actual expired/restarted session: the server's explicit rejection clears the token and returns the user to the menu.
+- [ ] Exhaust all transient retries: the token remains and **Retry Reconnect** is available; do not advertise this as unlimited or guaranteed recovery after the server's 30s slot expiry.
+- [ ] Verify Android/iOS backgrounding and refresh, polling fallback, and unchanged protocol 3 behavior. Real-device/international/network testing is **NOT RUN** until recorded.
+
+Automated gate for this branch: run `npm test`, `npm run build`, and `npm run release:check` using Node 24; this assistant environment could not execute them.
+
 ## Automated gate
 
 Run Node.js 24, `npm ci`, then `npm run release:check`. This runs simulation/network tests, TypeScript, the production build, and an ephemeral production HTTP/asset smoke test. The game stays on one Node process; no external database is required.
