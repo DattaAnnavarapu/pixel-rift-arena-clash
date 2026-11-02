@@ -1,0 +1,37 @@
+name: Render keep-alive
+
+on:
+  schedule:
+    # UTC, offset from the start of the hour. Best effort, not an uptime guarantee.
+    - cron: '2-59/5 * * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: render-keep-alive
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Check Pixel Rift health
+        shell: bash
+        run: |
+          curl --fail --silent --show-error \
+            --connect-timeout 15 \
+            --max-time 90 \
+            --retry 2 \
+            --retry-delay 5 \
+            --retry-max-time 180 \
+            --retry-connrefused \
+            --output /dev/null \
+            --write-out 'Health check HTTP %{http_code}\n' \
+            https://pixel-rift-arena-clash.onrender.com/health
+
+# GitHub schedules can be delayed or dropped, and public-repository schedules
+# are disabled after 60 days without repository activity.
+# Render free services share 750 instance-hours per workspace per month.
+# To remove idle sleep, upgrade the Render service to a paid compute plan.
