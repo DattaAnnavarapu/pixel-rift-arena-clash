@@ -1,3 +1,5 @@
+> Historical record: preserved from its original release. Version, deployment status, and test results below describe that point in time. See [current documentation](../README.md).
+
 # Pixel Rift: Arena Clash — Judge Pitch
 
 **Build:** 1.2.0-alpha.2 · **Protocol:** 3 · **Live demo:** [PUBLIC URL] (replace only after verification)

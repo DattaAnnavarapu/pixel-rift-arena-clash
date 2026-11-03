@@ -1,3 +1,5 @@
+> Historical record: preserved from its original release. Version, deployment status, and test results below describe that point in time. See [current documentation](../README.md).
+
 # Mobile CSS QA — not physical-device certification
 
 The **previous stabilization branch** reported browser iframe geometry checks at 320×568, 390×844 and 844×390 with no overflow. This event branch has **not** yet been rendered or captured in a current browser session. Screenshots are intentionally **not attached**, because doing so without a run would misrepresent acceptance. Capture them in the same built revision after CI passes and save screenshots under `docs/screenshots/`.

@@ -1,3 +1,5 @@
+> Historical record: preserved from its original release. Version, deployment status, and test results below describe that point in time. See [current documentation](../README.md).
+
 # Pixel Rift: event-day release and feature-freeze checklist
 
 **Candidate:** 1.2.0-alpha.2 · protocol **3** · authoritative single-instance server. **Deadline:** event night (confirm exact time and timezone with organizers). **Feature freeze begins exactly 3 hours before that deadline**; calculate the cutoff from the confirmed event time, not from a guess.

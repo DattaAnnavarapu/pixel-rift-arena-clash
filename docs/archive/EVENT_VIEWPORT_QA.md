@@ -1,3 +1,5 @@
+> Historical record: preserved from its original release. Version, deployment status, and test results below describe that point in time. See [current documentation](../README.md).
+
 # Event viewport QA — browser CSS layout checks (NOT REAL DEVICE)
 
 **Status: NOT RUN for this branch.** This environment cannot run the repository's Node 24 app or Playwright. No screenshots are attached yet; do **not** interpret this file as evidence of passing layout. The previous screenshots are from older code and are not a substitute.

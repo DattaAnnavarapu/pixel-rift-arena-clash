@@ -1,3 +1,5 @@
+> Historical record: preserved from its original release. Version, deployment status, and test results below describe that point in time. See [current documentation](../README.md).
+
 # Pixel Rift — bug-fix-only mode after feature freeze
 
 **Trigger:** A concrete user-reported bug or observed release blocker, not a wish list. This document does **not** authorize changes to server gameplay logic, matchmaking or wire protocol. Protocol stays 3. No Phase 8 features.

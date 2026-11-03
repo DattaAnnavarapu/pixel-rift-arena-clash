@@ -1,3 +1,5 @@
+> Historical record: preserved from its original release. Version, deployment status, and test results below describe that point in time. See [current documentation](../README.md).
+
 # Pixel Rift expansion — 1.3.0-alpha.1 / protocol 4
 
 Review branch: `feature/rift-expansion`, based on `4a5d2e8` (merged PRs #19 and #18).
@@ -24,7 +26,7 @@ Review branch: `feature/rift-expansion`, based on `4a5d2e8` (merged PRs #19 and 
 
 Preview: create private room, select Capture the Flag (auto-selects Citadel), fill with bots, select Medic/Arc Repeater/Mend, ready and launch. Verified live canvas, timer, flags, new loadout HUD. A second tab joined the active full room as spectator; reload resumed watching. Removed combat HUD from spectator view and verified dedicated leave control.
 
-![Actual local expansion preview, spectator view](screenshots/expansion-spectator.jpg)
+![Actual local expansion preview, spectator view](../screenshots/expansion-spectator.jpg)
 
 The preview has a Vite development-HMR websocket warning; authoritative game snapshots continued updating. This is distinct from the production smoke checks, which pass.
 

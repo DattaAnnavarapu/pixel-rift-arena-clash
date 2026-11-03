@@ -1,3 +1,5 @@
+> Historical record: preserved from its original release. Version, deployment status, and test results below describe that point in time. See [current documentation](../README.md).
+
 # Event baseline reference time-to-kill (TTK)
 
 **No cadence changes in this branch**: Blaster 800ms, Shotgun 1500ms, Precision rifle 1500ms. These are reference-calculation figures at a stationary 100HP Assault target, each pellet hitting, no projectile travel time, no cover, no shield, no reload delay before defeat, and a first shot at t=0. This is *not* a logged new automated run. The same underlying game balance as merged alpha.2 remains; test and real combat can differ. Human playtest required.

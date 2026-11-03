@@ -1,3 +1,5 @@
+> Historical record: preserved from its original release. Version, deployment status, and test results below describe that point in time. See [current documentation](../README.md).
+
 # Event cold-start, wake-up and fallback
 
 ## Event uptime and backup operations

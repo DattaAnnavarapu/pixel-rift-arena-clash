@@ -1,3 +1,5 @@
+> Historical release checklist. See [current release checks](../development.md#release-checklist).
+
 # Pixel Rift release review
 
 Current source baseline: `main` includes the merged stabilization work at `1.2.0-alpha.2` (protocol 3). Event Tasks 2–7 are proposed separately; check the active PR and exact deployment commit before claiming publication. Earlier v1.1 test history remains below.
@@ -19,7 +21,7 @@ Current source baseline: `main` includes the merged stabilization work at `1.2.0
 
 **Known limitations:** shield activation backdates up to 150ms but does not undo committed damage/KO; region routing disabled; cross-country, perceptual audio and sustained load not certified; rooms and reconnect tokens are process-local and reset on deploy. Quick Play is not skill-matched. A backup service cannot inherit active rooms. Phase 8 maps/modes/cosmetics remain deferred.
 
-**Release-hygiene suggestion, do NOT execute until approved:** `git tag event-candidate && git push origin event-candidate`. See [event day runbook](docs/EVENT_DAY_CHECKLIST.md), [uptime/backup](docs/EVENT_UPTIME.md), [TTK matrix](docs/EVENT_TTK.md), [mobile CSS QA](docs/MOBILE_CSS_QA.md) and [demo script](docs/DEMO_SCRIPT.md).
+**Release-hygiene suggestion, do NOT execute until approved:** `git tag event-candidate && git push origin event-candidate`. See [event day runbook](EVENT_DAY_CHECKLIST.md), [uptime/backup](EVENT_UPTIME.md), [TTK matrix](EVENT_TTK.md), [mobile CSS QA](MOBILE_CSS_QA.md) and [demo script](DEMO_SCRIPT.md).
 
 ## Resume/reconnect regression — event hotfix (manual checks pending)
 
@@ -97,7 +99,7 @@ Required public retest: two players abroad use the exact same URL and mode; reco
 
 ## v1.2 Phase 1 candidate
 
-Branch `feature/v1.2-phase1-combat`, version `1.2.0-alpha.1`, protocol 3. Scope and balance tables: docs/V1_2_PHASE1_PLAN.md and README. PR #7 input dispatch, movement replay and two-thumb controls remain the baseline.
+Branch `feature/v1.2-phase1-combat`, version `1.2.0-alpha.1`, protocol 3. Scope and balance tables: V1_2_PHASE1_PLAN.md and README. PR #7 input dispatch, movement replay and two-thumb controls remain the baseline.
 
 Automated gate: 70 tests plus TypeScript/Vite build and production smoke. New coverage exercises nine class/weapon combinations, magazines/reload, class-aware healing/resets, damage modifiers, absorption/expiry/refresh, fast bolts/cover/reflection, prediction and actual Socket.IO selection validation. Old mobile-input and polling regressions remain enabled.
 

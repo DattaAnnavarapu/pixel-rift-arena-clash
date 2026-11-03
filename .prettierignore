@@ -1,0 +1,9 @@
+node_modules/
+dist/
+build/
+coverage/
+package-lock.json
+docs/archive/
+.github/workflows/render-keep-alive.yml
+render.yaml
+LICENSE

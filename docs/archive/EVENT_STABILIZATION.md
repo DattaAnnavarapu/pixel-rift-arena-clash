@@ -1,3 +1,5 @@
+> Historical record: preserved from its original release. Version, deployment status, and test results below describe that point in time. See [current documentation](../README.md).
+
 # Event stabilization phase log
 
 Baseline: 70 tests, 1.2.0-alpha.1, protocol 3. New wire fields remain optional. No merge/deploy or real-device/international certification is implied.
