@@ -1,20 +1,25 @@
 # Pixel Rift: Arena Clash
 
+![Pixel Rift gameplay — local CTF spectator test](docs/screenshots/expansion-spectator.jpg)
+
+*Local test capture of Capture the Flag spectator mode.*
+
 A free, no-login, browser-based team arena game for 2-4 players on desktop and mobile.
 
 Pick a class, bring a weapon, and fight for crystals, control points, and knockouts using Dash, a reflective Shield, and special abilities. Learn in a guided tutorial, jump into private practice against bots, or invite friends with a room code, link, or QR code.
 
-**Live game:** [PUBLIC URL]
-<!-- Replace the placeholder only with the tested production address before submission. -->
+**Live game:** [Play Pixel Rift](https://pixel-rift-arena-clash.onrender.com)
 
-> **Status:** `1.2.0-alpha.2` event candidate. This is a development preview, not a certified global-scale release. The `1.3` expansion (see below) lives on a review branch and is not deployed to the public game yet.
+**Documentation:** [Project notes and QA index](docs/README.md)
+
+> **Status:** `1.3.0-alpha.1` event candidate (protocol 4). This is a development preview, not a certified global-scale release.
 
 ---
 
 ## Highlights
 
-- **Team arena combat** with 3 classes, 3 weapons, and 4 specials selected independently in the lobby
-- **Four modes** (Crystal Clash, Blitz, Knockout, Rift Control) across **four arenas** with their own hazards and mechanics
+- **Team arena combat** with 5 classes, 5 weapons, and 4 specials selected independently in the lobby
+- **Five modes** (Crystal Clash, Blitz, Knockout, Rift Control, Capture the Flag) across **five arenas**, including Citadel Crossing, with their own hazards and mechanics
 - **Server-authoritative multiplayer**: a 30 Hz Node/Socket.IO server decides hits, pickups, scores, and outcomes, while client-side prediction keeps controls responsive
 - **Mobile-first controls**: two-thumb sticks, touch abilities, portrait and landscape layouts, left-handed mode
 - **Practice vs Bots** (Easy / Normal / Hard) and an **11-stage guided tutorial**
@@ -207,9 +212,9 @@ It checks `/health`, `/api/status`, the built HTML and JavaScript, and security/
 
 ---
 
-## 1.3 expansion (review branch, not yet deployed)
+## What's new in 1.3
 
-This branch requires protocol 4, so older clients get a reload prompt.
+The 1.3 expansion is merged into `main`. It requires protocol 4, so older open tabs get a reload prompt.
 
 - **Capture the Flag:** up to 2v2, first to 3 captures or highest score after four minutes. KOs do not score, dropped friendly flags can be returned by touch, abandoned flags return after 12 seconds, and ties get 30 seconds of overtime. Bots pursue flags and returns.
 - **Citadel Crossing:** a new mirrored arena with three traversable routes and shared cover. Selecting CTF selects this arena.
