@@ -1,7 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { inviteUrl, qrMatrix, QR_SIZE, QR_MAX_BYTES } from "../src/invite-qr.js";
+import {
+  inviteUrl,
+  qrMatrix,
+  QR_SIZE,
+  QR_MAX_BYTES,
+} from "../src/invite-qr.js";
 
 test("room invite encodes the exact same-origin public join URL", () => {
   assert.equal(
@@ -24,7 +29,10 @@ test("offline QR matrix matches a QR v5-L reference encoding", () => {
   assert.ok(matrix);
   assert.equal(matrix.length, QR_SIZE);
   assert.ok(matrix.every((row) => row.length === QR_SIZE));
-  const packed = matrix.flat().map((value) => (value ? "1" : "0")).join("");
+  const packed = matrix
+    .flat()
+    .map((value) => (value ? "1" : "0"))
+    .join("");
   assert.equal(
     createHash("sha256").update(packed).digest("hex"),
     "66e6ad76038060a6eff5153d37a8067edbf3fd502710702b4ca0ab5801e96299",

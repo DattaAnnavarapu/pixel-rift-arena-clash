@@ -1,3 +1,5 @@
+> Historical record: preserved from its original release. Version, deployment status, and test results below describe that point in time. See [current documentation](../README.md).
+
 # v1.2 Phase 1: combat expansion implementation plan
 
 ## Architecture review and boundaries

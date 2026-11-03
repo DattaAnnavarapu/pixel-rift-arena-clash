@@ -788,13 +788,22 @@ export default class Arena extends Phaser.Scene {
       const gx = x + Math.cos(angle) * (20 - recoil),
         gy = y + Math.sin(angle) * (20 - recoil);
       if (p.weaponId === "scatter") {
-        for (const side of [-1,1]) {
-          const ox=Math.sin(angle)*side*4,oy=-Math.cos(angle)*side*4;
-          g.lineStyle(4,0xffcd80);g.lineBetween(gx+ox,gy+oy,gx+ox+Math.cos(angle)*14,gy+oy+Math.sin(angle)*14);
+        for (const side of [-1, 1]) {
+          const ox = Math.sin(angle) * side * 4,
+            oy = -Math.cos(angle) * side * 4;
+          g.lineStyle(4, 0xffcd80);
+          g.lineBetween(
+            gx + ox,
+            gy + oy,
+            gx + ox + Math.cos(angle) * 14,
+            gy + oy + Math.sin(angle) * 14,
+          );
         }
       } else if (p.weaponId === "repeater") {
-        g.fillStyle(0x7cffe0);g.fillCircle(gx,gy,6);
-        g.lineStyle(2,0xd5fff3);g.strokeCircle(gx,gy,8);
+        g.fillStyle(0x7cffe0);
+        g.fillCircle(gx, gy, 6);
+        g.lineStyle(2, 0xd5fff3);
+        g.strokeCircle(gx, gy, 8);
       }
       g.lineStyle(7, 0x16233a);
       g.lineBetween(x, y, gx, gy);

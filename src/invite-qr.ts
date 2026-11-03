@@ -30,7 +30,8 @@ function rsRemainder(data: number[], count: number): number[] {
   for (const byte of data) {
     const factor = byte ^ remainder.shift()!;
     remainder.push(0);
-    for (let i = 0; i < count; i++) remainder[i] ^= multiply(divisor[i], factor);
+    for (let i = 0; i < count; i++)
+      remainder[i] ^= multiply(divisor[i], factor);
   }
   return remainder;
 }
@@ -54,8 +55,12 @@ export function qrMatrix(value: string): boolean[][] | null {
   }
   while (data.length < 108) data.push(data.length % 2 === 0 ? 0xec : 0x11);
   const all = [...data, ...rsRemainder(data, 26)];
-  const cells = Array.from({ length: QR_SIZE }, () => Array<boolean>(QR_SIZE).fill(false));
-  const fixed = Array.from({ length: QR_SIZE }, () => Array<boolean>(QR_SIZE).fill(false));
+  const cells = Array.from({ length: QR_SIZE }, () =>
+    Array<boolean>(QR_SIZE).fill(false),
+  );
+  const fixed = Array.from({ length: QR_SIZE }, () =>
+    Array<boolean>(QR_SIZE).fill(false),
+  );
   const set = (x: number, y: number, dark: boolean) => {
     if (x >= 0 && y >= 0 && x < QR_SIZE && y < QR_SIZE) {
       cells[y][x] = dark;
@@ -67,17 +72,19 @@ export function qrMatrix(value: string): boolean[][] | null {
     set(i, 6, i % 2 === 0);
   }
   const finder = (cx: number, cy: number) => {
-    for (let dy = -4; dy <= 4; dy++) for (let dx = -4; dx <= 4; dx++) {
-      const dist = Math.max(Math.abs(dx), Math.abs(dy));
-      set(cx + dx, cy + dy, dist !== 2 && dist !== 4);
-    }
+    for (let dy = -4; dy <= 4; dy++)
+      for (let dx = -4; dx <= 4; dx++) {
+        const dist = Math.max(Math.abs(dx), Math.abs(dy));
+        set(cx + dx, cy + dy, dist !== 2 && dist !== 4);
+      }
   };
   finder(3, 3);
   finder(QR_SIZE - 4, 3);
   finder(3, QR_SIZE - 4);
-  for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
-    set(30 + dx, 30 + dy, Math.max(Math.abs(dx), Math.abs(dy)) !== 1);
-  }
+  for (let dy = -2; dy <= 2; dy++)
+    for (let dx = -2; dx <= 2; dx++) {
+      set(30 + dx, 30 + dy, Math.max(Math.abs(dx), Math.abs(dy)) !== 1);
+    }
   let format = 8; // Error correction L, mask pattern zero
   let rem = format;
   for (let i = 0; i < 10; i++) rem = (rem << 1) ^ ((rem >>> 9) * 0x537);
@@ -99,7 +106,9 @@ export function qrMatrix(value: string): boolean[][] | null {
       for (let j = 0; j < 2; j++) {
         const x = right - j;
         if (fixed[y][x]) continue;
-        const value = offset < all.length * 8 && ((all[offset >>> 3] >>> (7 - (offset & 7))) & 1) !== 0;
+        const value =
+          offset < all.length * 8 &&
+          ((all[offset >>> 3] >>> (7 - (offset & 7))) & 1) !== 0;
         cells[y][x] = value !== ((x + y) % 2 === 0);
         offset++;
       }

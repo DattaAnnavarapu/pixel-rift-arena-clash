@@ -1,3 +1,5 @@
+> Historical record: preserved from its original release. Version, deployment status, and test results below describe that point in time. See [current documentation](../README.md).
+
 # Pixel Rift: event demo and recording script (60–90 seconds)
 
 **Recording requirement:** Every screenshot and video clip must come from the **actual deployed build** at the verified event commit. Do not use mockups, staged UI composites, or footage of a different version. Confirm the public URL, protocol 3, and version 1.2.0-alpha.2 before recording. Record a clean browser window with legible HUD; avoid displaying personal information, browser notifications, or secret tokens.

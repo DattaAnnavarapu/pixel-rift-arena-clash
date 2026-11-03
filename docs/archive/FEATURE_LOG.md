@@ -1,3 +1,5 @@
+> Historical record: preserved from its original release. Version, deployment status, and test results below describe that point in time. See [current documentation](../README.md).
+
 # Pixel Rift — last-day feature triage and execution log
 
 **Baseline:** `origin/main`, 1.2.0-alpha.2, protocol 3. User supplied evidence of **109/109 passing tests**, build, release gate and deployed two-client event check on the verified production build. That evidence applies **only to the previously tested main commit**, not to branches created below.

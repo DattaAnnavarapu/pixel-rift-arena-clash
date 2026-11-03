@@ -6,24 +6,47 @@ import { PROTOCOL_VERSION } from "../server/release.js";
 import { validEnter } from "../server/robustness.js";
 
 test("private practice payload whitelist and quick-play isolation", async () => {
-  assert.equal(validEnter({ create: true, practice: true, botLevel: "hard" }), true);
+  assert.equal(
+    validEnter({ create: true, practice: true, botLevel: "hard" }),
+    true,
+  );
   assert.equal(validEnter({ create: true, practice: "yes" }), false);
-  assert.equal(validEnter({ create: true, practice: true, botLevel: "training" }), false);
+  assert.equal(
+    validEnter({ create: true, practice: true, botLevel: "training" }),
+    false,
+  );
   const server = await createGameServer({ port: 0, serveClient: false });
   const sockets: Socket[] = [];
   const client = async () => {
-    const s = io(server.url, { forceNew: true, transports: ["websocket"], reconnection: false });
+    const s = io(server.url, {
+      forceNew: true,
+      transports: ["websocket"],
+      reconnection: false,
+    });
     sockets.push(s);
     await new Promise<void>((resolve, reject) => {
-      s.once("connect", resolve); s.once("connect_error", reject);
+      s.once("connect", resolve);
+      s.once("connect_error", reject);
     });
     return s;
   };
   const enter = (s: Socket, options: Record<string, unknown>) =>
-    new Promise<any>((resolve, reject) => s.timeout(5000).emit("enter", { protocol: PROTOCOL_VERSION, ...options }, (error: any, reply: any) => error ? reject(error) : resolve(reply)));
+    new Promise<any>((resolve, reject) =>
+      s
+        .timeout(5000)
+        .emit(
+          "enter",
+          { protocol: PROTOCOL_VERSION, ...options },
+          (error: any, reply: any) => (error ? reject(error) : resolve(reply)),
+        ),
+    );
   try {
     const a = await client();
-    const practice = await enter(a, { create: true, practice: true, botLevel: "hard" });
+    const practice = await enter(a, {
+      create: true,
+      practice: true,
+      botLevel: "hard",
+    });
     assert.ok(practice.code);
     const room = server.rooms.get(practice.code)!;
     assert.equal(room.publicMatch, false);
@@ -31,16 +54,31 @@ test("private practice payload whitelist and quick-play isolation", async () => 
     assert.equal(room.phase, "playing");
     assert.equal(room.players.filter((p) => p.bot).length, 3);
     // start() intentionally clears ready flags for the next round.
-    assert.ok(room.players.some((p) => p.team === 0) && room.players.some((p) => p.team === 1));
+    assert.ok(
+      room.players.some((p) => p.team === 0) &&
+        room.players.some((p) => p.team === 1),
+    );
     const takeover = await client();
-    const denied = await enter(takeover, { create: true, practice: true, token: practice.token });
+    const denied = await enter(takeover, {
+      create: true,
+      practice: true,
+      token: practice.token,
+    });
     assert.match(denied.error, /Practice requires a private room/);
-    assert.equal(room.phase, "playing", "invalid practice request must not restart the match");
+    assert.equal(
+      room.phase,
+      "playing",
+      "invalid practice request must not restart the match",
+    );
     const b = await client();
     const quick = await enter(b, { matchmake: true, mode: "crystal" });
     assert.notEqual(quick.code, practice.code);
     const c = await client();
-    const invalid = await enter(c, { create: true, practice: true, botLevel: "training" });
+    const invalid = await enter(c, {
+      create: true,
+      practice: true,
+      botLevel: "training",
+    });
     assert.match(invalid.error, /Invalid join payload/);
   } finally {
     sockets.forEach((s) => s.disconnect());

@@ -8,15 +8,27 @@ test("lost resume acknowledgement: same socket can retry without changing player
   const server = await createGameServer({ port: 0, serveClient: false });
   const sockets: Socket[] = [];
   async function connect() {
-    const s = io(server.url, { forceNew: true, reconnection: false, transports: ["websocket"] });
+    const s = io(server.url, {
+      forceNew: true,
+      reconnection: false,
+      transports: ["websocket"],
+    });
     sockets.push(s);
-    await new Promise<void>((resolve, reject) => { s.once("connect", resolve); s.once("connect_error", reject); });
+    await new Promise<void>((resolve, reject) => {
+      s.once("connect", resolve);
+      s.once("connect_error", reject);
+    });
     return s;
   }
-  const enter = (s: Socket, data: Record<string, unknown>) => new Promise<any>((resolve, reject) => {
-    s.timeout(3000).emit("enter", { protocol: PROTOCOL_VERSION, ...data },
-      (error: Error | null, reply: any) => error ? reject(error) : resolve(reply));
-  });
+  const enter = (s: Socket, data: Record<string, unknown>) =>
+    new Promise<any>((resolve, reject) => {
+      s.timeout(3000).emit(
+        "enter",
+        { protocol: PROTOCOL_VERSION, ...data },
+        (error: Error | null, reply: any) =>
+          error ? reject(error) : resolve(reply),
+      );
+    });
   try {
     const a = await connect();
     const original = await enter(a, { create: true, name: "ResumeTest" });
@@ -27,7 +39,11 @@ test("lost resume acknowledgement: same socket can retry without changing player
     assert.deepEqual(retry, first);
     assert.equal(server.rooms.get(original.code)?.players.length, 1);
     const c = await connect();
-    const forbidden = await enter(c, { token: original.token, create: true, practice: true });
+    const forbidden = await enter(c, {
+      token: original.token,
+      create: true,
+      practice: true,
+    });
     assert.match(forbidden.error, /Practice requires a private room/);
     assert.equal(server.rooms.get(original.code)?.players.length, 1);
   } finally {
