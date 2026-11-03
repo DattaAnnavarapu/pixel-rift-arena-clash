@@ -19,7 +19,10 @@ test("query opt-out persists for the current browser session", () => {
       setItem: (key: string, value: string) => void values.set(key, value),
     },
   };
-  Object.defineProperty(globalThis, "window", { configurable: true, value: browser });
+  Object.defineProperty(globalThis, "window", {
+    configurable: true,
+    value: browser,
+  });
   try {
     assert.equal(polishEnabled(true), false);
     assert.equal(values.get(SAFE_MODE_KEY), "1");

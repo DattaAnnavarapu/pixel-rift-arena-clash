@@ -17,6 +17,6 @@ export function eventFeatureEnabled(
   feature: EventFlag,
   environment: Record<string, string | undefined> = process.env,
 ): boolean {
-  const key = `PIXEL_RIFT_${feature.replace(/[A-Z]/g, (c) => "_"+c).toUpperCase()}`;
+  const key = `PIXEL_RIFT_${feature.replace(/[A-Z]/g, (c) => "_" + c).toUpperCase()}`;
   return environment[key] === "1";
 }

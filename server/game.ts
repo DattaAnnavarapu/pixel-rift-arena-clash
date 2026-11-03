@@ -404,7 +404,10 @@ export function updateFlags(r: Room, now: number) {
   for (const f of r.flags) {
     if (f.carrier) {
       const p = r.players.find((p) => p.id === f.carrier);
-      if (p) { f.x=p.x; f.y=p.y; }
+      if (p) {
+        f.x = p.x;
+        f.y = p.y;
+      }
       if (!p || !p.online || p.respawn) {
         delete f.carrier;
         f.droppedAt = now;

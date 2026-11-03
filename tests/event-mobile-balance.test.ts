@@ -5,8 +5,14 @@ import { parseSettings } from "../src/settings.js";
 import { joystickVector } from "../src/joystick.js";
 
 test("weapon cadence switches retain the event baseline", () => {
-  assert.deepEqual(weaponCadenceMs, { blaster: 800, shotgun: 1500, rifle: 1500 });
-  for (const key of Object.keys(weaponCadenceMs) as Array<keyof typeof weaponCadenceMs>)
+  assert.deepEqual(weaponCadenceMs, {
+    blaster: 800,
+    shotgun: 1500,
+    rifle: 1500,
+  });
+  for (const key of Object.keys(weaponCadenceMs) as Array<
+    keyof typeof weaponCadenceMs
+  >)
     assert.equal(weapons[key].interval, weaponCadenceMs[key]);
   for (const kind of Object.keys(classes) as Array<keyof typeof classes>)
     for (const weapon of Object.keys(weapons) as Array<keyof typeof weapons>) {
@@ -17,7 +23,9 @@ test("weapon cadence switches retain the event baseline", () => {
     }
 });
 test("mobile stick size and sensitivity are clamped for safe input", () => {
-  const s = parseSettings(JSON.stringify({ stickSize: 999, aimSensitivity: 100, leftHanded: true }));
+  const s = parseSettings(
+    JSON.stringify({ stickSize: 999, aimSensitivity: 100, leftHanded: true }),
+  );
   assert.equal(s.stickSize, 132);
   assert.equal(s.aimSensitivity, 2);
   assert.equal(s.leftHanded, true);

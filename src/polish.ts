@@ -7,7 +7,11 @@ export function allowPolish(
   savedSafeMode: boolean,
   effectsOn: boolean,
 ): boolean {
-  return !savedSafeMode && new URLSearchParams(query).get("safe") !== "1" && effectsOn;
+  return (
+    !savedSafeMode &&
+    new URLSearchParams(query).get("safe") !== "1" &&
+    effectsOn
+  );
 }
 
 /**
@@ -20,9 +24,7 @@ export function polishEnabled(effectsOn: boolean): boolean {
     if (new URLSearchParams(window.location.search).get("safe") === "1") {
       window.sessionStorage.setItem(SAFE_MODE_KEY, "1");
     }
-    return (
-      window.sessionStorage.getItem(SAFE_MODE_KEY) !== "1" && effectsOn
-    );
+    return window.sessionStorage.getItem(SAFE_MODE_KEY) !== "1" && effectsOn;
   } catch {
     // If session storage is inaccessible, a ?safe=1 link still works.
     return (

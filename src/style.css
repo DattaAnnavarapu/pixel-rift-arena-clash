@@ -2645,9 +2645,23 @@ main[data-theme] .progression progress {
   accent-color: var(--gold, #bfa0fb);
 }
 
-main[data-watching="true"] .abilities,main[data-watching="true"] .boosts {display:none;}
-.watch-banner button {margin-left:12px;padding:6px 10px;}
-@media(min-width:1101px) and (pointer:fine){
-.in-match:has(.flag-status)>.arenaWrap {width:min(100%,calc((100dvh - 290px)*1.6));max-height:calc(100dvh - 290px);}
-.in-match>.flag-status,.in-match>.watch-banner {margin:2px 0;padding:6px 12px;flex-shrink:0;}
+main[data-watching="true"] .abilities,
+main[data-watching="true"] .boosts {
+  display: none;
+}
+.watch-banner button {
+  margin-left: 12px;
+  padding: 6px 10px;
+}
+@media (min-width: 1101px) and (pointer: fine) {
+  .in-match:has(.flag-status) > .arenaWrap {
+    width: min(100%, calc((100dvh - 290px) * 1.6));
+    max-height: calc(100dvh - 290px);
+  }
+  .in-match > .flag-status,
+  .in-match > .watch-banner {
+    margin: 2px 0;
+    padding: 6px 12px;
+    flex-shrink: 0;
+  }
 }

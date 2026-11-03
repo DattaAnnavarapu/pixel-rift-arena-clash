@@ -179,7 +179,11 @@ test("real quick-play clients match privately, reject old protocol and stale inp
     await new Promise((res) => setTimeout(res, 80));
     assert.equal(r.players.find((p) => p.id === one.id)?.loadout, "blink");
     assert.equal(r.players.find((p) => p.id === one.id)?.ready, true);
-    assert.equal(r.startsAt, countdown, "kit selection preserves the queue countdown");
+    assert.equal(
+      r.startsAt,
+      countdown,
+      "kit selection preserves the queue countdown",
+    );
     a.emit("lobby", { mode: "control", arena: "frost" });
     await new Promise((res) => setTimeout(res, 25));
     assert.equal(r.mode, "blitz");
@@ -235,14 +239,13 @@ test("Pulse cannot damage or push an opponent through cover", () => {
   assert.equal(b.x, 375);
 });
 
-
 test("Quick Play starts with two, three or four humans and cancels on disconnect", () => {
   for (const count of [2, 3, 4]) {
     const r = room();
     r.publicMatch = true;
     if (count >= 3) r.players.push(player("c", "C", 0));
     if (count === 4) r.players.push(player("d", "D", 1));
-    r.players.forEach(p => p.ready = true);
+    r.players.forEach((p) => (p.ready = true));
     updateMatchmaking(r, 1000);
     assert.equal(r.startsAt, 6000);
     updateMatchmaking(r, 6000);
@@ -250,7 +253,7 @@ test("Quick Play starts with two, three or four humans and cancels on disconnect
   }
   const r = room();
   r.publicMatch = true;
-  r.players.forEach(p => p.ready = true);
+  r.players.forEach((p) => (p.ready = true));
   updateMatchmaking(r, 1000);
   r.players[1].online = false;
   updateMatchmaking(r, 6000);

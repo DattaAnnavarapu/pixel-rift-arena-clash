@@ -125,7 +125,7 @@ test("Medic Mend heals nearby teammates, caps actual healing and leaves enemies 
   a.classId = "medic";
   a.loadout = "mend";
   start(r, 0);
-  r.pickups=[];
+  r.pickups = [];
   a.x = c.x = b.x = 150;
   a.y = c.y = b.y = 300;
   a.hp = 100;
