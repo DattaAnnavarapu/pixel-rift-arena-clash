@@ -1,3 +1,5 @@
+import { normalizeRoomCode, validRoomCode } from "./room-entry";
+import { MatchRecap } from "./ui/MatchRecap";
 import { ActionLatch } from "./action-latch";
 import { polishEnabled } from "./polish";
 import { inviteUrl, qrMatrix, QR_SIZE } from "./invite-qr";
@@ -140,7 +142,7 @@ function Stick({
         activePointer.current = e.pointerId;
         e.preventDefault();
         unlock();
-        touch.aim = true;
+        if (aim) touch.aim = true;
         e.currentTarget.setPointerCapture(e.pointerId);
         move(e);
       }}
@@ -360,7 +362,7 @@ function App() {
     [id, setId] = useState(""),
     [name, setName] = useState(localStorage.getItem("rift-name") || ""),
     [code, setCode] = useState(
-      new URLSearchParams(location.search).get("room") || "",
+      normalizeRoomCode(new URLSearchParams(location.search).get("room") || ""),
     ),
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
@@ -389,6 +391,7 @@ function App() {
     [snapshotStale, setSnapshotStale] = useState(false),
     [mismatch, setMismatch] = useState(false),
     [previewArena, setPreviewArena] = useState<ArenaId>("astral");
+  const joining = useRef(false);
   const resumeController = useRef<AbortController | null>(null),
     wasConnected = useRef(false);
   const lastSnapshot = useRef(Date.now()),
@@ -417,6 +420,18 @@ function App() {
     practice = false,
     spectate = false,
   ) {
+    if (!resume) {
+      if (!socket.connected || mismatch || joining.current) return;
+      const requestedCode = normalizeRoomCode(
+        new URLSearchParams(location.search).get("room") || code,
+      );
+      if (!create && !matchmake && !validRoomCode(requestedCode)) {
+        setError("Enter the six-character room code from your friend.");
+        return;
+      }
+      joining.current = true;
+      setError("");
+    }
     // A resume is not a new entry: transient failures must preserve session ownership.
     if (resume) {
       const token = sessionStorage.getItem("rift-token");
@@ -435,7 +450,9 @@ function App() {
             "enter",
             {
               name: localStorage.getItem("rift-name") || "Rifter",
-              code: new URLSearchParams(location.search).get("room") || code,
+              code: normalizeRoomCode(
+                new URLSearchParams(location.search).get("room") || code,
+              ),
               create: false,
               matchmake: false,
               mode: quickMode,
@@ -493,7 +510,9 @@ function App() {
       "enter",
       {
         name: nameRef.current,
-        code: new URLSearchParams(location.search).get("room") || code,
+        code: normalizeRoomCode(
+          new URLSearchParams(location.search).get("room") || code,
+        ),
         create,
         matchmake,
         spectate: spectate || undefined,
@@ -504,6 +523,7 @@ function App() {
         protocol: PROTOCOL_VERSION,
       },
       (err: any, r: any) => {
+        joining.current = false;
         setPending(false);
         if (err || r?.error) {
           setError(
@@ -560,6 +580,8 @@ function App() {
     socket.on("hello", hello);
     socket.on("server-closing", serverClosing);
     const disconnected = () => {
+      joining.current = false;
+      setPending(false);
       resumeController.current?.abort();
       resumeController.current = null;
       setReconnecting(!!sessionStorage.getItem("rift-token"));
@@ -764,6 +786,8 @@ function App() {
   const left = Math.max(0, (s?.end ?? 0) - time),
     timer = `${Math.floor(left / 60000)}:${String(Math.floor(left / 1000) % 60).padStart(2, "0")}`;
   function leave() {
+    joining.current = false;
+    setPending(false);
     resumeController.current?.abort();
     resumeController.current = null;
     setReconnecting(false);
@@ -855,6 +879,11 @@ function App() {
           >
             ⚙
           </button>
+          {s && !lobby && (
+            <button className="desktop-leave" onClick={leave}>
+              LEAVE MATCH
+            </button>
+          )}
           <button
             aria-label="How to play"
             onClick={() => {
@@ -1000,7 +1029,7 @@ function App() {
                 />
               </label>
               <label className="quick-mode">
-                QUICK PLAY MODE
+                MATCH MODE
                 <select
                   value={quickMode}
                   onChange={(e) => setQuickMode(e.target.value as ModeId)}
@@ -1012,6 +1041,10 @@ function App() {
                   ))}
                 </select>
               </label>
+              <p className="mode-brief">
+                {modes[quickMode].description}. Applies to Quick Play, private
+                rooms, and bot practice.
+              </p>
               <button
                 className="primary large"
                 disabled={!online || pending || mismatch}
@@ -1058,7 +1091,9 @@ function App() {
               </button>
               <div className="divider">ALREADY HAVE A CODE?</div>
               <button
-                disabled={pending || code.length !== 6}
+                disabled={
+                  !online || pending || mismatch || !validRoomCode(code)
+                }
                 onClick={() => join(false, false, false, false, false, true)}
               >
                 WATCH ROOM · SPECTATOR
@@ -1066,25 +1101,35 @@ function App() {
               <div className="join-row">
                 <input
                   aria-label="Room code"
-                  maxLength={6}
+                  maxLength={12}
+                  autoCapitalize="characters"
+                  autoComplete="off"
+                  spellCheck={false}
+                  aria-describedby="room-code-help"
                   value={code}
                   onChange={(e) => {
-                    setCode(e.target.value.toUpperCase());
+                    setCode(normalizeRoomCode(e.target.value));
                     sessionStorage.removeItem("rift-watch");
                     history.replaceState({}, "", location.pathname);
                   }}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" && code.length === 6) join(false);
+                    if (e.key === "Enter" && validRoomCode(code)) join(false);
                   }}
-                  placeholder="6-DIGIT CODE"
+                  placeholder="6-CHARACTER CODE"
                 />
                 <button
-                  disabled={!online || pending || mismatch || code.length !== 6}
+                  disabled={
+                    !online || pending || mismatch || !validRoomCode(code)
+                  }
                   onClick={() => join(false)}
                 >
                   JOIN →
                 </button>
               </div>
+              <small id="room-code-help" className="quiet">
+                Room full or match already started? Use Watch Room. Codes
+                contain six letters (A–F) or numbers.
+              </small>
               <small className="quiet">
                 Quick Play matches on this server by mode. For friends abroad,
                 use the exact same invite link and mode.
@@ -1248,7 +1293,7 @@ function App() {
                   {(Object.keys(arenas) as ArenaId[]).map((a) => (
                     <button
                       key={a}
-                      disabled={!host || !!s.publicMatch}
+                      disabled={!host || !!s.publicMatch || mode === "ctf"}
                       className={arena === a ? "selected" : ""}
                       aria-pressed={arena === a}
                       onClick={() => configure({ arena: a })}
@@ -1262,7 +1307,10 @@ function App() {
                     </button>
                   ))}
                 </div>
-                <p className="quiet">{arenas[arena].tag}</p>
+                <p className="quiet">
+                  {arenas[arena].tag}
+                  {mode === "ctf" ? " · CTF uses Citadel Crossing." : ""}
+                </p>
                 <label>
                   GAME MODE
                   <select
@@ -1305,7 +1353,12 @@ function App() {
                     </strong>
                   </div>
                 )}
-                {s.phase === "finished" && <Contributions s={s} />}
+                {s.phase === "finished" && (
+                  <>
+                    <MatchRecap s={s} id={id} />
+                    <Contributions s={s} />
+                  </>
+                )}
                 <div className="card-top">
                   <span className="eyebrow">PLAYERS</span>
                   <small>{s.players.length} / 4 CONNECTED SLOTS</small>
@@ -1404,31 +1457,41 @@ function App() {
                     </div>
                   ))}
                 </div>
-                <CombatSelection
-                  classId={self?.classId ?? "assault"}
-                  weaponId={self?.weaponId ?? "blaster"}
-                  onSelect={configure}
-                />
-                <div className="loadout">
-                  <label>
-                    YOUR SPECIAL <kbd>Q</kbd>
-                  </label>
-                  <div>
-                    {(Object.keys(loadouts) as LoadoutId[]).map((k) => (
-                      <button
-                        key={k}
-                        aria-pressed={self?.loadout === k}
-                        className={self?.loadout === k ? "selected" : ""}
-                        onClick={() => configure({ loadout: k })}
-                      >
-                        <b>
-                          {loadouts[k].glyph} {loadouts[k].name}
-                        </b>
-                        <small>{loadouts[k].description}</small>
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                {!watching && (
+                  <>
+                    <CombatSelection
+                      classId={self?.classId ?? "assault"}
+                      weaponId={self?.weaponId ?? "blaster"}
+                      onSelect={configure}
+                    />
+                    <div className="loadout">
+                      <label>
+                        YOUR SPECIAL <kbd>Q</kbd>
+                      </label>
+                      <div>
+                        {(Object.keys(loadouts) as LoadoutId[]).map((k) => (
+                          <button
+                            key={k}
+                            aria-pressed={self?.loadout === k}
+                            className={self?.loadout === k ? "selected" : ""}
+                            onClick={() => configure({ loadout: k })}
+                          >
+                            <b>
+                              {loadouts[k].glyph} {loadouts[k].name}
+                            </b>
+                            <small>{loadouts[k].description}</small>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+                {watching && (
+                  <p className="spectator-note">
+                    You’re watching. Players choose loadouts and ready up for
+                    the next round.
+                  </p>
+                )}
                 {s.publicMatch && (
                   <div className="matchmaking-status" role="status">
                     {s.startsAt
@@ -1436,45 +1499,51 @@ function App() {
                       : "QUICK PLAY · Waiting for two humans, with everyone ready."}
                   </div>
                 )}
-                <div className="lobby-footer">
-                  <div>
-                    <b>
-                      {s.players.filter((p) => p.online && p.ready).length} /{" "}
-                      {s.players.filter((p) => p.online).length} READY
-                    </b>
-                    <small>
-                      {s.players.filter((p) => p.team === 0 && p.online)
-                        .length !==
-                      s.players.filter((p) => p.team === 1 && p.online).length
-                        ? "Unbalanced teams · 2 vs 1 allowed."
-                        : "Both teams need a ready player."}
-                    </small>
-                  </div>
-                  <button
-                    className={self?.ready ? "" : "primary"}
-                    onClick={() => configure({ ready: !self?.ready })}
-                  >
-                    {self?.ready ? "UNREADY" : "READY UP ✓"}
-                  </button>
-                  {host && (
+                {!watching && (
+                  <div className="lobby-footer">
+                    <div>
+                      <b>
+                        {s.players.filter((p) => p.online && p.ready).length} /{" "}
+                        {s.players.filter((p) => p.online).length} READY
+                      </b>
+                      <small>
+                        {s.players.filter((p) => p.team === 0 && p.online)
+                          .length !==
+                        s.players.filter((p) => p.team === 1 && p.online).length
+                          ? "Unbalanced teams · 2 vs 1 allowed."
+                          : "Both teams need a ready player."}
+                      </small>
+                    </div>
                     <button
-                      className="start-button"
-                      disabled={
-                        s.players.filter((p) => p.online).length < 2 ||
-                        !s.players
-                          .filter((p) => p.online)
-                          .every((p) => p.ready) ||
-                        ![0, 1].every((t) =>
-                          s.players.some((p) => p.online && p.team === t),
-                        )
-                      }
-                      onClick={() => configure({ start: true })}
+                      className={self?.ready ? "" : "primary"}
+                      onClick={() => configure({ ready: !self?.ready })}
                     >
-                      {s.phase === "finished" ? "REMATCH" : "START MATCH"} →
+                      {self?.ready
+                        ? "UNREADY"
+                        : s.phase === "finished"
+                          ? "READY FOR REMATCH ✓"
+                          : "READY UP ✓"}
                     </button>
-                  )}
-                </div>
-                {!host && (
+                    {host && !s.publicMatch && (
+                      <button
+                        className="start-button"
+                        disabled={
+                          s.players.filter((p) => p.online).length < 2 ||
+                          !s.players
+                            .filter((p) => p.online)
+                            .every((p) => p.ready) ||
+                          ![0, 1].every((t) =>
+                            s.players.some((p) => p.online && p.team === t),
+                          )
+                        }
+                        onClick={() => configure({ start: true })}
+                      >
+                        {s.phase === "finished" ? "REMATCH" : "START MATCH"} →
+                      </button>
+                    )}
+                  </div>
+                )}
+                {!host && !watching && (
                   <small className="quiet">
                     {s.publicMatch
                       ? "Your match starts automatically once everyone is ready."
@@ -1755,48 +1824,60 @@ function App() {
                       : "CENTER OPEN OR CONTESTED · ENTER THE RING"}
                 </div>
               )}
-              <div className="touch">
-                <Stick />
-                <div className="touchright">
-                  <Stick aim sensitivity={settings.aimSensitivity ?? 1} />
-                  <div className="touch-buttons">
-                    <TouchButton
-                      action="dash"
-                      label="DASH"
-                      remaining={Math.max(
-                        0,
-                        Math.ceil(((self?.dash ?? 0) - time) / 1000),
-                      )}
-                    />
-                    <TouchButton
-                      action="shield"
-                      label="SHIELD"
-                      remaining={Math.max(
-                        0,
-                        Math.ceil(((self?.shield ?? 0) - time) / 1000),
-                      )}
-                    />
-                    <TouchButton
-                      action="special"
-                      label={loadouts[self?.loadout ?? "nova"].name}
-                      remaining={Math.max(
-                        0,
-                        Math.ceil(((self?.special ?? 0) - time) / 1000),
-                      )}
-                    />
+              {!watching && (
+                <>
+                  <div className="touch">
+                    <Stick />
+                    <div className="touchright">
+                      <Stick aim sensitivity={settings.aimSensitivity ?? 1} />
+                      <div className="touch-buttons">
+                        <TouchButton
+                          action="dash"
+                          label="DASH"
+                          remaining={Math.max(
+                            0,
+                            Math.ceil(((self?.dash ?? 0) - time) / 1000),
+                          )}
+                        />
+                        <TouchButton
+                          action="shield"
+                          label="SHIELD"
+                          remaining={Math.max(
+                            0,
+                            Math.ceil(((self?.shield ?? 0) - time) / 1000),
+                          )}
+                        />
+                        <TouchButton
+                          action="special"
+                          label={loadouts[self?.loadout ?? "nova"].name}
+                          remaining={Math.max(
+                            0,
+                            Math.ceil(((self?.special ?? 0) - time) / 1000),
+                          )}
+                        />
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-              <div className="match-tip">
-                WASD move · MOUSE aim · CLICK fire · SPACE dash · E shield · Q
-                special
-              </div>
+                  <div className="match-tip">
+                    WASD move · MOUSE aim · CLICK fire · SPACE dash · E shield ·
+                    Q special
+                  </div>
+                </>
+              )}
             </>
           )}
           {error && (
-            <p className="error" role="alert">
-              {error}
-            </p>
+            <div role="alert">
+              <p className="error">{error}</p>
+              {online && sessionStorage.getItem("rift-token") && (
+                <button
+                  disabled={pending || reconnecting}
+                  onClick={() => join(false, true)}
+                >
+                  RETRY RECONNECT
+                </button>
+              )}
+            </div>
           )}
         </>
       )}

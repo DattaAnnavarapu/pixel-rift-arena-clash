@@ -54,6 +54,7 @@ export function resetInput() {
   input.x = input.y = 0;
   input.fire = input.dash = input.shield = input.special = false;
   touch.firing = false;
+  touch.aim = false;
   touch.move = touch.dash = touch.shield = touch.special = false;
 }
 

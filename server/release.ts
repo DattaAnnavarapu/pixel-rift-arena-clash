@@ -1,6 +1,6 @@
 import { modes, start, type ModeId, type Room } from "./game.js";
 export const PROTOCOL_VERSION = 4;
-export const RELEASE_VERSION = "1.3.0-alpha.1";
+export const RELEASE_VERSION = "1.3.0-alpha.2";
 export function findPublicRoom(
   rooms: Iterable<Room>,
   mode: ModeId,
@@ -32,7 +32,7 @@ export function findPublicRoom(
     })[0];
 }
 export function updateMatchmaking(r: Room, now: number) {
-  if (!r.publicMatch || r.phase !== "lobby") return;
+  if (!r.publicMatch || !["lobby", "finished"].includes(r.phase)) return;
   const humans = r.players.filter((p) => p.online && !p.bot),
     players = r.players.filter((p) => p.online);
   if (humans.length >= 2) {

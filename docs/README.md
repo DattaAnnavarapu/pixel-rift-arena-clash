@@ -1,12 +1,14 @@
 # Documentation
 
-Project notes for Pixel Rift: Arena Clash, source version `1.3.0-alpha.1` (protocol 4).
+Project notes for Pixel Rift: Arena Clash, source version `1.3.0-alpha.2` (protocol 4).
 
 ## Current guides
 
 - [Gameplay](gameplay.md): controls, classes, weapons, modes, arenas, spectators, and progression.
 - [Development](development.md): local setup, architecture, tooling, and release checklist.
 - [Deployment](deployment.md): Render configuration, release verification, and screenshots.
+
+- [Stable-play QA](stable-play-qa.md): 1.3.0-alpha.2 changes and remaining release checks.
 
 ## Historical records
 

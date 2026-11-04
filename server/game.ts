@@ -347,6 +347,7 @@ export type Player = {
   kills: number;
   deaths: number;
   collected: number;
+  resultTeam?: number;
   damageDealt?: number;
   healingDone?: number;
   objectives?: number;
@@ -598,6 +599,11 @@ export function configure(
     if (r.mode === "ctf") r.arena = "citadel";
     changed = true;
   }
+  // CTF bases are authored for Citadel; do not allow an incompatible map.
+  if (r.mode === "ctf" && r.arena !== "citadel") {
+    r.arena = "citadel";
+    changed = true;
+  }
   if (changed) r.players.forEach((p) => (p.ready = !!p.bot));
   return changed;
 }
@@ -687,6 +693,7 @@ export function start(r: Room, now: number) {
       objectives: 0,
       captures: 0,
       returns: 0,
+      resultTeam: undefined,
       kills: 0,
       deaths: 0,
       collected: 0,
@@ -711,7 +718,10 @@ function finish(r: Room) {
       : r.scores[0] > r.scores[1]
         ? "Crimson"
         : "Azure";
-  r.players.forEach((p) => (p.ready = !!p.bot));
+  r.players.forEach((p) => {
+    p.ready = !!p.bot;
+    p.resultTeam = p.team;
+  });
 }
 function damage(
   r: Room,

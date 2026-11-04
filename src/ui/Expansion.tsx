@@ -91,7 +91,10 @@ export function Contributions({ s }: { s: Snapshot }) {
           </thead>
           <tbody>
             {s.players.map((p) => (
-              <tr key={p.id} className={p.team ? "blue" : "red"}>
+              <tr
+                key={p.id}
+                className={(p.resultTeam ?? p.team) ? "blue" : "red"}
+              >
                 <th>
                   {p.name}
                   {p.bot ? " · BOT" : ""}

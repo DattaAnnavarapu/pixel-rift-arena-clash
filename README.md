@@ -8,7 +8,7 @@ A free browser-based team arena game for 2–4 players on phones and laptops. Jo
 
 **[Play Pixel Rift](https://pixel-rift-arena-clash.onrender.com)** · **[Documentation](docs/README.md)**
 
-> **Status:** `1.3.0-alpha.1` event candidate (protocol 4). This is a development preview, not a certified global-scale release.
+> **Status:** `1.3.0-alpha.2` event candidate (protocol 4). This is a development preview, not a certified global-scale release.
 
 ## Highlights
 

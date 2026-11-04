@@ -2665,3 +2665,107 @@ main[data-watching="true"] .boosts {
     flex-shrink: 0;
   }
 }
+
+/* Stable-play pass: readable objectives, loadouts and a compact results summary. */
+.mode-brief {
+  padding: 10px 12px;
+  border-left: 3px solid var(--gold, #c4a6ff);
+  background: #bca0ff0d;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.spectator-note {
+  padding: 16px;
+  border: 1px solid #a8baff55;
+  border-radius: 12px;
+  background: #a8baff0d;
+}
+.kit-role {
+  color: #e4d7ff !important;
+  line-height: 1.4;
+}
+.match-recap {
+  margin: 16px 0 24px;
+}
+.personal-recap {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  background: linear-gradient(135deg, #c3a1ff18, #76daca0d);
+  border: 1px solid #bfa0ff55;
+  padding: 18px;
+  border-radius: 14px;
+}
+.personal-recap h3 {
+  margin: 8px 0 0;
+}
+.personal-recap p {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #c7c2df;
+}
+.earned-xp {
+  align-self: center;
+  font-size: clamp(18px, 3vw, 28px);
+  color: #f1d992;
+}
+.recap-stats {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.recap-stats span {
+  display: grid;
+  gap: 6px;
+  padding: 12px 4px;
+  text-align: center;
+  background: #090d1d80;
+  border-radius: 8px;
+  font-size: 11px;
+  color: #c7c2df;
+}
+.recap-stats b {
+  font-size: 20px;
+  color: #fff;
+}
+.team-recaps {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 12px;
+}
+.team-recaps > div {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid #ffffff20;
+  border-radius: 10px;
+}
+.team-recaps span,
+.team-recaps small {
+  color: #cac8df;
+  font-size: 12px;
+}
+input:focus-visible {
+  outline: 3px solid #f8d894;
+  outline-offset: 3px;
+}
+@media (max-width: 480px) {
+  .recap-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .team-recaps {
+    grid-template-columns: 1fr;
+  }
+  .personal-recap {
+    padding: 12px;
+  }
+}
+@media (max-width: 1100px), (pointer: coarse) {
+  .desktop-leave {
+    display: none;
+  }
+}

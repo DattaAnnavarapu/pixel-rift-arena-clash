@@ -1,3 +1,4 @@
+import { matchReward } from "./match-recap";
 import { loadouts, type Snapshot } from "../server/game";
 export type Progress = {
   xp?: number;
@@ -65,7 +66,7 @@ export function updateProgress(
   if (
     s.phase === "finished" &&
     !entry.won &&
-    s.winner === (p.team ? "Azure" : "Crimson")
+    s.winner === ((p.resultTeam ?? p.team) ? "Azure" : "Crimson")
   ) {
     entry.won = true;
     next.wins++;
@@ -77,11 +78,7 @@ export function updateProgress(
   ) {
     entry.rewarded = true;
     next.matches = (next.matches ?? 0) + 1;
-    next.xp =
-      (next.xp ?? 0) +
-      100 +
-      (entry.won ? 50 : 0) +
-      Math.min(100, p.kills * 5 + (p.objectives ?? 0) * 5);
+    next.xp = (next.xp ?? 0) + matchReward(s, id).total;
   }
   next.seen[key] = entry;
   const keys = Object.keys(next.seen);
