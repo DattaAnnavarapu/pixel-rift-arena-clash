@@ -38,7 +38,7 @@ Rooms and reconnect tokens live in memory on one instance. Deploys and restarts 
 
 The repository uses Render's free plan. The existing keep-alive workflow requests `/health` on a five-minute schedule; scheduling delays, free-tier quotas, and restarts mean it is not a 24/7 uptime guarantee. Keep deployment settings and the keep-alive workflow unchanged during documentation cleanup.
 
-Confirm the deployed commit and `/health` response before claiming a version is live. The source baseline is `1.3.0-alpha.1`, protocol `4`.
+Confirm the deployed commit and `/health` response before claiming a version is live. The source baseline is `1.3.0-alpha.2`, protocol `4`.
 
 ## Screenshots
 

@@ -31,7 +31,7 @@ function ttk(c: ClassId, w: WeaponId, boost: boolean) {
   }
   return at / 1000;
 }
-test("all nine attackers stay in 1.5–4s reference TTK band with/without damage pickup", () => {
+test("all 25 class/weapon combinations stay in 1.5–4s reference TTK band with/without damage pickup", () => {
   const report = [];
   for (const c of Object.keys(classes) as ClassId[])
     for (const w of Object.keys(weapons) as WeaponId[])

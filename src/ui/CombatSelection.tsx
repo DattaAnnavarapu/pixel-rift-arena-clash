@@ -4,6 +4,20 @@ import {
   type ClassId,
   type WeaponId,
 } from "../../server/combat";
+const classRoles = {
+  assault: "Balanced frontline",
+  tank: "Durable defender",
+  scout: "Fast flanker",
+  medic: "Team healer · pair with Mend",
+  ranger: "Mobile skirmisher",
+};
+const weaponRoles = {
+  blaster: "Steady mid-range",
+  shotgun: "Close-range burst",
+  rifle: "Long-range precision",
+  repeater: "Rapid sustained fire",
+  scatter: "Twin-shot pressure",
+};
 export function CombatSelection({
   classId,
   weaponId,
@@ -29,6 +43,7 @@ export function CombatSelection({
                 <b>
                   {c.glyph} {c.name}
                 </b>
+                <small className="kit-role">{classRoles[id]}</small>
                 <small>
                   {c.hp} HP · {c.speed} speed · {Math.round(c.damage * 100)}%
                   damage
@@ -50,6 +65,7 @@ export function CombatSelection({
                 onClick={() => onSelect({ weaponId: id })}
               >
                 <b>{w.name}</b>
+                <small className="kit-role">{weaponRoles[id]}</small>
                 <small>
                   {w.damage}
                   {w.spread.length > 1 ? ` × ${w.spread.length}` : ""} damage ·{" "}

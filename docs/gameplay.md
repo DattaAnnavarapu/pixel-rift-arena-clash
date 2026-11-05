@@ -78,6 +78,8 @@ Crystal Clash, Knockout, and Rift Control last three minutes unless a team reach
 
 CTF ties get 30 seconds of overtime without a shrinking boundary. Touch your dropped flag to return it; abandoned flags return after 12 seconds. Selecting CTF selects Citadel Crossing.
 
+The menu's Match Mode also applies to private rooms and Practice vs Bots. CTF locks the arena to Citadel Crossing. After a Quick Play round, players can ready up for another automatic five-second countdown; private rematches are started by the host.
+
 **Quick Play** lets players opt into a public lobby by mode; two ready humans on opposing teams start automatically after five seconds. Private room codes stay private, and solo practice always runs in a private room with bots.
 
 ---

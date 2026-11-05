@@ -270,7 +270,8 @@ export async function createGameServer(
         });
       if (!room) {
         const quick = data?.matchmake === true;
-        const chosenMode = validMode(data?.mode) ? data.mode : "crystal";
+        const chosenMode =
+          !data.tutorial && validMode(data?.mode) ? data.mode : "crystal";
         if (quick)
           room = findPublicRoom(rooms.values(), chosenMode, s.data.rtt);
         let code = String(data?.code || "").toUpperCase();
@@ -284,7 +285,7 @@ export async function createGameServer(
             players: [],
             phase: "lobby",
             arena: chosenMode === "ctf" ? "citadel" : "astral",
-            mode: quick ? chosenMode : "crystal",
+            mode: chosenMode,
             publicMatch: quick,
             tutorial: data.tutorial === true,
             effects: [],
